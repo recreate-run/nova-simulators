@@ -89,6 +89,13 @@ func (m *Manager) createSession(w http.ResponseWriter) {
 		return
 	}
 
+	// Create working directory for session
+	dir := NewDirectory(sessionID)
+	if err := dir.Create(); err != nil {
+		log.Printf("[session] ✗ Failed to create working directory: %v", err)
+		// Continue even if directory creation fails - it's not critical
+	}
+
 	response := map[string]string{
 		"session_id": sessionID,
 		"status":     "created",
@@ -112,6 +119,13 @@ func (m *Manager) deleteSession(w http.ResponseWriter, sessionID string) {
 	err = m.queries.DeleteGmailSessionData(context.Background(), sessionID)
 	if err != nil {
 		log.Printf("[session] ✗ Failed to delete Gmail session data: %v", err)
+	}
+
+	// Delete working directory for session
+	dir := NewDirectory(sessionID)
+	if err := dir.Delete(); err != nil {
+		log.Printf("[session] ✗ Failed to delete working directory: %v", err)
+		// Continue even if directory deletion fails
 	}
 
 	response := map[string]string{

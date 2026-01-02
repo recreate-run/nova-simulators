@@ -28,7 +28,7 @@ func Middleware(next http.Handler) http.Handler {
 		if sessionID == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"ok":    false,
 				"error": "missing_session_id",
 				"message": "X-Session-ID header is required",

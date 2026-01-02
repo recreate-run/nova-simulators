@@ -107,7 +107,7 @@ func (h *Handler) handleGmailAPI(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasPrefix(path, "messages/send"):
 		h.handleSendMessage(w, r)
-	case strings.HasPrefix(path, "messages/") && r.Method == "GET":
+	case strings.HasPrefix(path, "messages/") && r.Method == http.MethodGet:
 		// Extract message ID from path
 		parts := strings.Split(path, "/")
 		if len(parts) >= 2 {
@@ -116,7 +116,7 @@ func (h *Handler) handleGmailAPI(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Error(w, "Invalid message ID", http.StatusBadRequest)
 		}
-	case path == "messages" && r.Method == "GET":
+	case path == "messages" && r.Method == http.MethodGet:
 		h.handleListMessages(w, r)
 	default:
 		http.NotFound(w, r)
@@ -190,7 +190,7 @@ func (h *Handler) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[gmail] ✓ Message sent: %s", messageID)
 }
 
@@ -234,7 +234,7 @@ func (h *Handler) handleListMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[gmail] ✓ Listed %d messages", len(messages))
 }
 
@@ -258,7 +258,7 @@ func (h *Handler) handleGetMessage(w http.ResponseWriter, r *http.Request, messa
 	// Parse label IDs
 	var labelIDs []string
 	if dbMessage.LabelIds.Valid && dbMessage.LabelIds.String != "" {
-		json.Unmarshal([]byte(dbMessage.LabelIds.String), &labelIDs)
+		_ = json.Unmarshal([]byte(dbMessage.LabelIds.String), &labelIDs)
 	}
 
 	// Build headers
@@ -323,7 +323,7 @@ func (h *Handler) handleGetMessage(w http.ResponseWriter, r *http.Request, messa
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(message)
+	_ = json.NewEncoder(w).Encode(message)
 	log.Printf("[gmail] ✓ Returned message: %s", messageID)
 }
 
@@ -331,7 +331,7 @@ func (h *Handler) handleGetMessage(w http.ResponseWriter, r *http.Request, messa
 
 func generateMessageID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
 
@@ -348,11 +348,12 @@ func parseEmail(raw string) (from, to, subject, bodyPlain, bodyHTML string) {
 			}
 
 			// Parse headers
-			if strings.HasPrefix(line, "From: ") {
+			switch {
+			case strings.HasPrefix(line, "From: "):
 				from = strings.TrimPrefix(line, "From: ")
-			} else if strings.HasPrefix(line, "To: ") {
+			case strings.HasPrefix(line, "To: "):
 				to = strings.TrimPrefix(line, "To: ")
-			} else if strings.HasPrefix(line, "Subject: ") {
+			case strings.HasPrefix(line, "Subject: "):
 				subject = strings.TrimPrefix(line, "Subject: ")
 			}
 		} else {

@@ -78,7 +78,7 @@ func TestGmailSimulatorSendMessage(t *testing.T) {
 
 	t.Run("SendPlainTextEmail", func(t *testing.T) {
 		// Create email message
-		message := fmt.Sprintf("From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Test Email\r\n\r\nThis is a test email body.")
+		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Test Email\r\n\r\nThis is a test email body."
 		raw := base64.URLEncoding.EncodeToString([]byte(message))
 
 		msg := &gmail.Message{
@@ -98,7 +98,7 @@ func TestGmailSimulatorSendMessage(t *testing.T) {
 
 	t.Run("SendHTMLEmail", func(t *testing.T) {
 		// Create HTML email message
-		message := fmt.Sprintf("From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: HTML Test\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><h1>Test</h1></body></html>")
+		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: HTML Test\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html><body><h1>Test</h1></body></html>"
 		raw := base64.URLEncoding.EncodeToString([]byte(message))
 
 		msg := &gmail.Message{

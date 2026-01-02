@@ -234,7 +234,7 @@ func TestSlackSimulatorMessagePersistence(t *testing.T) {
 	// Setup: Create test session
 	sessionID := "test-session-2"
 	setupTestSession(t, queries, sessionID)
-	channelID1, _, _, _ := getTestSessionIDs(sessionID)
+	channelID1 := "C001_" + sessionID
 
 	// Setup: Start simulator server with session middleware
 	handler := session.Middleware(simulatorSlack.NewHandler(queries))
@@ -288,7 +288,7 @@ func TestSlackSimulatorFileUpload(t *testing.T) {
 	// Setup: Create test session
 	sessionID := "test-session-3"
 	setupTestSession(t, queries, sessionID)
-	channelID1, _, _, _ := getTestSessionIDs(sessionID)
+	channelID1 := "C001_" + sessionID
 
 	// Setup: Start simulator server with session middleware
 	handler := session.Middleware(simulatorSlack.NewHandler(queries))
@@ -378,7 +378,7 @@ func TestSlackSimulatorAttachments(t *testing.T) {
 	// Setup: Create test session
 	sessionID := "test-session-5"
 	setupTestSession(t, queries, sessionID)
-	channelID1, _, _, _ := getTestSessionIDs(sessionID)
+	channelID1 := "C001_" + sessionID
 
 	// Setup: Start simulator server with session middleware
 	handler := session.Middleware(simulatorSlack.NewHandler(queries))

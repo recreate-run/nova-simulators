@@ -36,9 +36,9 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (m *Manager) handleSessions(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		m.createSession(w, r)
+		m.createSession(w)
 	case http.MethodGet:
-		m.listSessions(w, r)
+		m.listSessions(w)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -62,20 +62,20 @@ func (m *Manager) handleSessionDetail(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		m.resetSession(w, r, sessionID)
+		m.resetSession(w, sessionID)
 		return
 	}
 
 	// Handle DELETE for session deletion
 	if r.Method == http.MethodDelete {
-		m.deleteSession(w, r, sessionID)
+		m.deleteSession(w, sessionID)
 		return
 	}
 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (m *Manager) createSession(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) createSession(w http.ResponseWriter) {
 	log.Println("[session] → Creating new session")
 
 	// Generate random session ID
@@ -89,94 +89,17 @@ func (m *Manager) createSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create default channels for Slack in this session
-	timestamp := int64(1640000000) // Default timestamp
-	err = m.queries.CreateChannel(context.Background(), database.CreateChannelParams{
-		ID:        "C001",
-		Name:      "general",
-		CreatedAt: timestamp,
-		SessionID: sessionID,
-	})
-	if err != nil {
-		log.Printf("[session] ✗ Failed to create default channel: %v", err)
-	}
-
-	err = m.queries.CreateChannel(context.Background(), database.CreateChannelParams{
-		ID:        "C002",
-		Name:      "random",
-		CreatedAt: timestamp,
-		SessionID: sessionID,
-	})
-	if err != nil {
-		log.Printf("[session] ✗ Failed to create default channel: %v", err)
-	}
-
-	// Create default users for Slack in this session
-	err = m.queries.CreateUser(context.Background(), database.CreateUserParams{
-		ID:              "U123456",
-		TeamID:          "T021F9ZE2",
-		Name:            "test-user",
-		RealName:        "Test User",
-		Email:           database.StringToNullString("test@example.com"),
-		DisplayName:     database.StringToNullString("testuser"),
-		FirstName:       database.StringToNullString("Test"),
-		LastName:        database.StringToNullString("User"),
-		IsAdmin:         0,
-		IsOwner:         0,
-		IsBot:           0,
-		Timezone:        database.StringToNullString("America/Los_Angeles"),
-		TimezoneLabel:   database.StringToNullString("Pacific Standard Time"),
-		TimezoneOffset:  database.Int64ToNullInt64(-28800),
-		Image24:         database.StringToNullString(""),
-		Image32:         database.StringToNullString(""),
-		Image48:         database.StringToNullString(""),
-		Image72:         database.StringToNullString(""),
-		Image192:        database.StringToNullString(""),
-		Image512:        database.StringToNullString(""),
-		SessionID:       sessionID,
-	})
-	if err != nil {
-		log.Printf("[session] ✗ Failed to create default user: %v", err)
-	}
-
-	err = m.queries.CreateUser(context.Background(), database.CreateUserParams{
-		ID:              "U789012",
-		TeamID:          "T021F9ZE2",
-		Name:            "bobby",
-		RealName:        "Bobby Tables",
-		Email:           database.StringToNullString("bobby@example.com"),
-		DisplayName:     database.StringToNullString("bobby"),
-		FirstName:       database.StringToNullString("Bobby"),
-		LastName:        database.StringToNullString("Tables"),
-		IsAdmin:         0,
-		IsOwner:         0,
-		IsBot:           0,
-		Timezone:        database.StringToNullString("America/Los_Angeles"),
-		TimezoneLabel:   database.StringToNullString("Pacific Standard Time"),
-		TimezoneOffset:  database.Int64ToNullInt64(-28800),
-		Image24:         database.StringToNullString(""),
-		Image32:         database.StringToNullString(""),
-		Image48:         database.StringToNullString(""),
-		Image72:         database.StringToNullString(""),
-		Image192:        database.StringToNullString(""),
-		Image512:        database.StringToNullString(""),
-		SessionID:       sessionID,
-	})
-	if err != nil {
-		log.Printf("[session] ✗ Failed to create default user: %v", err)
-	}
-
 	response := map[string]string{
 		"session_id": sessionID,
 		"status":     "created",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[session] ✓ Session created: %s", sessionID)
 }
 
-func (m *Manager) deleteSession(w http.ResponseWriter, r *http.Request, sessionID string) {
+func (m *Manager) deleteSession(w http.ResponseWriter, sessionID string) {
 	log.Printf("[session] → Deleting session: %s", sessionID)
 
 	// Delete all Slack data for this session
@@ -197,21 +120,21 @@ func (m *Manager) deleteSession(w http.ResponseWriter, r *http.Request, sessionI
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[session] ✓ Session deleted: %s", sessionID)
 }
 
-func (m *Manager) resetSession(w http.ResponseWriter, r *http.Request, sessionID string) {
+func (m *Manager) resetSession(w http.ResponseWriter, sessionID string) {
 	log.Printf("[session] → Resetting session: %s", sessionID)
 
 	// Delete and recreate is simpler than selective cleanup
-	m.deleteSession(w, r, sessionID)
+	m.deleteSession(w, sessionID)
 	// Note: We don't recreate the session entry itself, just clear the data
 
 	log.Printf("[session] ✓ Session reset: %s", sessionID)
 }
 
-func (m *Manager) listSessions(w http.ResponseWriter, r *http.Request) {
+func (m *Manager) listSessions(w http.ResponseWriter) {
 	// For now, return simple message
 	// In a real implementation, we'd query all sessions from the database
 	response := map[string]string{
@@ -219,12 +142,12 @@ func (m *Manager) listSessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // generateSessionID generates a random session ID
 func generateSessionID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return fmt.Sprintf("session-%s", hex.EncodeToString(b))
 }

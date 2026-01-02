@@ -495,6 +495,6 @@ func (h *Handler) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 // generateFileID generates a random file ID
 func generateFileID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return "F" + hex.EncodeToString(b)
 }

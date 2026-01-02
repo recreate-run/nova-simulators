@@ -155,21 +155,21 @@ func TestSessionIsolationSlack(t *testing.T) {
 		// Create client for Session A
 		transportA := &sessionHTTPTransport{sessionID: sessionA}
 		clientA := &http.Client{Transport: transportA}
+		ctx := context.Background()
 		// We need to use the actual Slack client, but we need to intercept requests
 		// For simplicity, let's post messages directly via HTTP
 
 		// Post message to Session A
-		resp, err := clientA.Post(
-			server.URL+"/api/chat.postMessage",
-			"application/x-www-form-urlencoded",
-			nil,
-		)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL+"/api/chat.postMessage", http.NoBody)
 		if err == nil {
-			resp.Body.Close()
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			resp, err := clientA.Do(req)
+			if err == nil {
+				_ = resp.Body.Close()
+			}
 		}
 
 		// Actually, let's use the database directly to insert messages and verify isolation
-		ctx := context.Background()
 
 		// Insert message for Session A
 		err = queries.CreateMessage(ctx, database.CreateMessageParams{
@@ -219,7 +219,7 @@ func TestSessionIsolationSlack(t *testing.T) {
 			SessionID: sessionA, // Using Session A's ID
 		})
 		require.NoError(t, err, "Query should succeed")
-		assert.Len(t, messagesACrossSession, 0, "Session A should not see Session B's messages")
+		assert.Empty(t, messagesACrossSession, "Session A should not see Session B's messages")
 	})
 
 	t.Run("Channels are isolated between sessions", func(t *testing.T) {
@@ -474,7 +474,7 @@ func TestSessionDeletion(t *testing.T) {
 			SessionID: sessionA,
 		})
 		require.NoError(t, err)
-		assert.Len(t, messagesA, 0, "Session A messages should be deleted")
+		assert.Empty(t, messagesA, "Session A messages should be deleted")
 
 		// Verify Session B's messages still exist
 		messagesB, err := queries.GetMessagesByChannel(ctx, database.GetMessagesByChannelParams{

@@ -12,6 +12,11 @@
 # Logs
 *.log
 logs/
+dev.log
+dev-prev.log
+
+# Shoreman
+.shoreman.pid
 
 # Go modules
 go.sum

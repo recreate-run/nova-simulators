@@ -28,17 +28,31 @@ This repository provides local HTTP simulators that mimic real SaaS APIs (Slack,
 
 ## Quick Start
 
-### Option 1: Direct Run (Development)
+### Option 1: Make Dev (Recommended for Development)
+
+```bash
+make dev
+```
+
+This starts all simulators with unified logging to `dev.log`. Auto-reloads on file changes.
+
+View logs in real-time:
+```bash
+make tail-log          # Unified process logs
+make tail-network-log  # Simulator API request/response logs
+```
+
+### Option 2: Direct Run (Manual)
 
 ```bash
 cd simulators/slack
 go run .
 ```
 
-### Option 2: Docker Compose (Recommended)
+### Option 3: Docker Compose (Production)
 
 ```bash
-docker-compose up -d
+make docker-up
 ```
 
 ## Usage with HTTP Interceptor

@@ -8,6 +8,163 @@ import (
 	"database/sql"
 )
 
+type DatadogEvent struct {
+	ID        int64          `json:"id"`
+	Title     string         `json:"title"`
+	Text      string         `json:"text"`
+	Tags      sql.NullString `json:"tags"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+}
+
+type DatadogIncident struct {
+	ID               string         `json:"id"`
+	Title            string         `json:"title"`
+	CustomerImpacted int64          `json:"customer_impacted"`
+	Severity         sql.NullString `json:"severity"`
+	SessionID        string         `json:"session_id"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+}
+
+type DatadogMetric struct {
+	ID         int64          `json:"id"`
+	MetricName string         `json:"metric_name"`
+	Value      float64        `json:"value"`
+	Tags       sql.NullString `json:"tags"`
+	Timestamp  int64          `json:"timestamp"`
+	SessionID  string         `json:"session_id"`
+	CreatedAt  int64          `json:"created_at"`
+}
+
+type DatadogMonitor struct {
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	Type      string         `json:"type"`
+	Query     string         `json:"query"`
+	Message   sql.NullString `json:"message"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type GdocsContent struct {
+	DocumentID  string `json:"document_id"`
+	ContentJson string `json:"content_json"`
+	EndIndex    int64  `json:"end_index"`
+	SessionID   string `json:"session_id"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
+type GdocsDocument struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	RevisionID string `json:"revision_id"`
+	DocumentID string `json:"document_id"`
+	SessionID  string `json:"session_id"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+type GithubBranch struct {
+	ID        int64  `json:"id"`
+	RepoOwner string `json:"repo_owner"`
+	RepoName  string `json:"repo_name"`
+	Name      string `json:"name"`
+	Sha       string `json:"sha"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type GithubFile struct {
+	ID        int64  `json:"id"`
+	RepoOwner string `json:"repo_owner"`
+	RepoName  string `json:"repo_name"`
+	Path      string `json:"path"`
+	Content   string `json:"content"`
+	Sha       string `json:"sha"`
+	Branch    string `json:"branch"`
+	SessionID string `json:"session_id"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type GithubIssue struct {
+	ID        int64          `json:"id"`
+	RepoOwner string         `json:"repo_owner"`
+	RepoName  string         `json:"repo_name"`
+	Number    int64          `json:"number"`
+	Title     string         `json:"title"`
+	Body      sql.NullString `json:"body"`
+	State     string         `json:"state"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type GithubIssueComment struct {
+	ID          int64  `json:"id"`
+	RepoOwner   string `json:"repo_owner"`
+	RepoName    string `json:"repo_name"`
+	IssueNumber int64  `json:"issue_number"`
+	CommentID   int64  `json:"comment_id"`
+	Body        string `json:"body"`
+	SessionID   string `json:"session_id"`
+	CreatedAt   int64  `json:"created_at"`
+}
+
+type GithubPullRequest struct {
+	ID        int64          `json:"id"`
+	RepoOwner string         `json:"repo_owner"`
+	RepoName  string         `json:"repo_name"`
+	Number    int64          `json:"number"`
+	Title     string         `json:"title"`
+	Body      sql.NullString `json:"body"`
+	Head      string         `json:"head"`
+	Base      string         `json:"base"`
+	State     string         `json:"state"`
+	Merged    int64          `json:"merged"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type GithubRepository struct {
+	ID            int64          `json:"id"`
+	Owner         string         `json:"owner"`
+	Name          string         `json:"name"`
+	DefaultBranch string         `json:"default_branch"`
+	Description   sql.NullString `json:"description"`
+	SessionID     string         `json:"session_id"`
+	CreatedAt     int64          `json:"created_at"`
+}
+
+type GithubWorkflow struct {
+	ID         int64  `json:"id"`
+	RepoOwner  string `json:"repo_owner"`
+	RepoName   string `json:"repo_name"`
+	WorkflowID int64  `json:"workflow_id"`
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	State      string `json:"state"`
+	SessionID  string `json:"session_id"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+type GithubWorkflowRun struct {
+	ID         int64          `json:"id"`
+	RepoOwner  string         `json:"repo_owner"`
+	RepoName   string         `json:"repo_name"`
+	RunID      int64          `json:"run_id"`
+	WorkflowID int64          `json:"workflow_id"`
+	Status     string         `json:"status"`
+	Conclusion sql.NullString `json:"conclusion"`
+	HeadBranch sql.NullString `json:"head_branch"`
+	HeadSha    sql.NullString `json:"head_sha"`
+	SessionID  string         `json:"session_id"`
+	CreatedAt  int64          `json:"created_at"`
+	UpdatedAt  int64          `json:"updated_at"`
+}
+
 type GmailMessage struct {
 	ID           string         `json:"id"`
 	ThreadID     string         `json:"thread_id"`
@@ -23,6 +180,261 @@ type GmailMessage struct {
 	SizeEstimate int64          `json:"size_estimate"`
 	CreatedAt    int64          `json:"created_at"`
 	SessionID    string         `json:"session_id"`
+}
+
+type GsheetsCell struct {
+	SpreadsheetID string         `json:"spreadsheet_id"`
+	SheetTitle    string         `json:"sheet_title"`
+	Row           int64          `json:"row"`
+	Col           int64          `json:"col"`
+	Value         sql.NullString `json:"value"`
+	SessionID     string         `json:"session_id"`
+	UpdatedAt     int64          `json:"updated_at"`
+}
+
+type GsheetsSheet struct {
+	ID            string `json:"id"`
+	SpreadsheetID string `json:"spreadsheet_id"`
+	Title         string `json:"title"`
+	SheetID       int64  `json:"sheet_id"`
+	SessionID     string `json:"session_id"`
+	CreatedAt     int64  `json:"created_at"`
+}
+
+type GsheetsSpreadsheet struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type HubspotAssociation struct {
+	ID              int64  `json:"id"`
+	FromObjectType  string `json:"from_object_type"`
+	FromObjectID    string `json:"from_object_id"`
+	ToObjectType    string `json:"to_object_type"`
+	ToObjectID      string `json:"to_object_id"`
+	AssociationType string `json:"association_type"`
+	SessionID       string `json:"session_id"`
+	CreatedAt       int64  `json:"created_at"`
+}
+
+type HubspotCompany struct {
+	ID        string         `json:"id"`
+	Name      sql.NullString `json:"name"`
+	Domain    sql.NullString `json:"domain"`
+	City      sql.NullString `json:"city"`
+	Industry  sql.NullString `json:"industry"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type HubspotContact struct {
+	ID          string         `json:"id"`
+	Email       sql.NullString `json:"email"`
+	FirstName   sql.NullString `json:"first_name"`
+	LastName    sql.NullString `json:"last_name"`
+	MobilePhone sql.NullString `json:"mobile_phone"`
+	Website     sql.NullString `json:"website"`
+	SessionID   string         `json:"session_id"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type HubspotDeal struct {
+	ID        string         `json:"id"`
+	DealName  sql.NullString `json:"deal_name"`
+	DealStage sql.NullString `json:"deal_stage"`
+	Pipeline  sql.NullString `json:"pipeline"`
+	Amount    sql.NullString `json:"amount"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type JiraComment struct {
+	ID        string `json:"id"`
+	IssueKey  string `json:"issue_key"`
+	Body      string `json:"body"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type JiraIssue struct {
+	ID          string         `json:"id"`
+	Key         string         `json:"key"`
+	ProjectKey  string         `json:"project_key"`
+	IssueType   string         `json:"issue_type"`
+	Summary     string         `json:"summary"`
+	Description sql.NullString `json:"description"`
+	Assignee    sql.NullString `json:"assignee"`
+	Status      string         `json:"status"`
+	SessionID   string         `json:"session_id"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type JiraProject struct {
+	ID        string `json:"id"`
+	Key       string `json:"key"`
+	Name      string `json:"name"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type JiraTransition struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ToStatus  string `json:"to_status"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type LinearIssue struct {
+	ID          string         `json:"id"`
+	TeamID      string         `json:"team_id"`
+	Title       string         `json:"title"`
+	Description sql.NullString `json:"description"`
+	AssigneeID  sql.NullString `json:"assignee_id"`
+	StateID     sql.NullString `json:"state_id"`
+	Url         string         `json:"url"`
+	SessionID   string         `json:"session_id"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+	ArchivedAt  sql.NullInt64  `json:"archived_at"`
+}
+
+type LinearState struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	TeamID    string `json:"team_id"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type LinearTeam struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Key       string `json:"key"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type LinearUser struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type OutlookMessage struct {
+	ID               string         `json:"id"`
+	FromEmail        string         `json:"from_email"`
+	ToEmail          string         `json:"to_email"`
+	Subject          string         `json:"subject"`
+	BodyContent      sql.NullString `json:"body_content"`
+	BodyType         string         `json:"body_type"`
+	IsRead           int64          `json:"is_read"`
+	ReceivedDatetime string         `json:"received_datetime"`
+	SessionID        string         `json:"session_id"`
+	CreatedAt        int64          `json:"created_at"`
+}
+
+type PagerdutyEscalationPolicy struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type PagerdutyIncident struct {
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	ServiceID   string         `json:"service_id"`
+	Urgency     string         `json:"urgency"`
+	Status      string         `json:"status"`
+	BodyDetails sql.NullString `json:"body_details"`
+	SessionID   string         `json:"session_id"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type PagerdutyOncall struct {
+	ID                 string `json:"id"`
+	UserEmail          string `json:"user_email"`
+	EscalationPolicyID string `json:"escalation_policy_id"`
+	SessionID          string `json:"session_id"`
+	CreatedAt          int64  `json:"created_at"`
+}
+
+type PagerdutyService struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type PostgresColumn struct {
+	ID              int64          `json:"id"`
+	DatabaseName    string         `json:"database_name"`
+	TableName       string         `json:"table_name"`
+	ColumnName      string         `json:"column_name"`
+	DataType        string         `json:"data_type"`
+	IsNullable      string         `json:"is_nullable"`
+	ColumnDefault   sql.NullString `json:"column_default"`
+	OrdinalPosition int64          `json:"ordinal_position"`
+	SessionID       string         `json:"session_id"`
+}
+
+type PostgresDatabase struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type PostgresQueryLog struct {
+	ID           int64         `json:"id"`
+	DatabaseName string        `json:"database_name"`
+	QueryText    string        `json:"query_text"`
+	QueryType    string        `json:"query_type"`
+	RowsAffected sql.NullInt64 `json:"rows_affected"`
+	SessionID    string        `json:"session_id"`
+	ExecutedAt   int64         `json:"executed_at"`
+}
+
+type PostgresRow struct {
+	ID           int64  `json:"id"`
+	DatabaseName string `json:"database_name"`
+	TableName    string `json:"table_name"`
+	RowData      string `json:"row_data"`
+	SessionID    string `json:"session_id"`
+	CreatedAt    int64  `json:"created_at"`
+	UpdatedAt    int64  `json:"updated_at"`
+}
+
+type PostgresTable struct {
+	ID           int64  `json:"id"`
+	DatabaseName string `json:"database_name"`
+	TableName    string `json:"table_name"`
+	SessionID    string `json:"session_id"`
+	CreatedAt    int64  `json:"created_at"`
+}
+
+type ResendEmail struct {
+	ID        string         `json:"id"`
+	FromEmail string         `json:"from_email"`
+	ToEmails  string         `json:"to_emails"`
+	Subject   string         `json:"subject"`
+	Html      string         `json:"html"`
+	CcEmails  sql.NullString `json:"cc_emails"`
+	BccEmails sql.NullString `json:"bcc_emails"`
+	ReplyTo   sql.NullString `json:"reply_to"`
+	SessionID string         `json:"session_id"`
+	CreatedAt int64          `json:"created_at"`
 }
 
 type Session struct {
@@ -86,4 +498,18 @@ type SlackUser struct {
 	Image512       sql.NullString `json:"image_512"`
 	CreatedAt      int64          `json:"created_at"`
 	SessionID      string         `json:"session_id"`
+}
+
+type WhatsappMessage struct {
+	ID            string         `json:"id"`
+	PhoneNumberID string         `json:"phone_number_id"`
+	ToNumber      string         `json:"to_number"`
+	MessageType   string         `json:"message_type"`
+	TextBody      sql.NullString `json:"text_body"`
+	MediaUrl      sql.NullString `json:"media_url"`
+	Caption       sql.NullString `json:"caption"`
+	TemplateName  sql.NullString `json:"template_name"`
+	LanguageCode  sql.NullString `json:"language_code"`
+	SessionID     string         `json:"session_id"`
+	CreatedAt     int64          `json:"created_at"`
 }

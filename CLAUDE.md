@@ -41,6 +41,8 @@ HTTP Interceptor: Transparent request routing via Go's `http.RoundTripper` inter
 
 Simulators: Single HTTP server (port 9000) with path-based routing for multiple SaaS APIs. Each simulator is a handler module (e.g., `/slack`, `/hubspot`). Accept form-encoded POST requests, return JSON responses matching real API behavior.
 
+Sessions: All requests require `X-Session-ID` header for multi-tenant isolation—each session has independent data with no predetermined seed state.
+
 How It Works:
 
 1. Integration code calls `slack.PostMessage()` → Makes HTTP request to `slack.com`

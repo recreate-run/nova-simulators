@@ -1,14 +1,17 @@
 -- +goose Up
 -- Add session_id columns to all tables for multi-session isolation
+-- Note: Session ID is required for all API requests via X-Session-ID header
 
 -- Slack tables
-ALTER TABLE slack_channels ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default';
-ALTER TABLE slack_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default';
-ALTER TABLE slack_files ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default';
-ALTER TABLE slack_users ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default';
+-- Using DEFAULT only for SQLite ALTER TABLE compatibility (cannot add NOT NULL without DEFAULT to tables with existing rows)
+-- The DEFAULT value is not used in practice as session ID is always required via X-Session-ID header
+ALTER TABLE slack_channels ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE slack_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE slack_files ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE slack_users ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
 
 -- Gmail tables
-ALTER TABLE gmail_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default';
+ALTER TABLE gmail_messages ADD COLUMN session_id TEXT NOT NULL DEFAULT '';
 
 -- Create indexes for session-based queries
 CREATE INDEX IF NOT EXISTS idx_slack_channels_session ON slack_channels(session_id);
@@ -23,9 +26,6 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at INTEGER NOT NULL DEFAULT (unixepoch()),
     last_accessed INTEGER NOT NULL DEFAULT (unixepoch())
 );
-
--- Insert default session
-INSERT OR IGNORE INTO sessions (id) VALUES ('default');
 
 -- +goose Down
 DROP INDEX IF EXISTS idx_gmail_messages_session;

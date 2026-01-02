@@ -15,11 +15,12 @@ type SimulatorTransport struct {
 }
 
 // NewSimulatorTransport creates a new transport that routes requests to simulators
+// Note: Session ID must be set via WithSessionID() to make authenticated requests
 func NewSimulatorTransport(routingMap map[string]string) *SimulatorTransport {
 	return &SimulatorTransport{
 		baseTransport: http.DefaultTransport,
 		routingMap:    routingMap,
-		sessionID:     "default", // Use default session by default
+		sessionID:     "", // No default session - must be set explicitly
 	}
 }
 

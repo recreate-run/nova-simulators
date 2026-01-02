@@ -334,7 +334,8 @@ func (h *Handler) handleGetUploadURL(w http.ResponseWriter, r *http.Request) {
 
 	// Generate file ID
 	fileID := generateFileID()
-	uploadURL := fmt.Sprintf("http://localhost:9000/slack/upload/%s", fileID)
+	// Use files.slack.com so the HTTP interceptor can route it properly in tests
+	uploadURL := fmt.Sprintf("http://files.slack.com/upload/%s", fileID)
 
 	// Store file metadata in database
 	err := h.queries.CreateFile(context.Background(), database.CreateFileParams{

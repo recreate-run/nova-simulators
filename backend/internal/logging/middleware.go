@@ -22,7 +22,8 @@ func InitLogger(filename string) error {
 	defer logMu.Unlock()
 
 	var err error
-	logFile, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	// #nosec G304 -- filename is controlled by the application, not user input
+	logFile, err = os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
 	}
@@ -35,7 +36,7 @@ func CloseLogger() {
 	defer logMu.Unlock()
 
 	if logFile != nil {
-		logFile.Close()
+		_ = logFile.Close()
 	}
 }
 
@@ -115,7 +116,7 @@ Response Body (JSON):
 
 			logMu.Lock()
 			if logFile != nil {
-				logFile.WriteString(logEntry)
+				_, _ = logFile.WriteString(logEntry)
 			}
 			logMu.Unlock()
 		})

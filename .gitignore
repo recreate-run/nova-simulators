@@ -8,6 +8,11 @@
 # Go build
 /slack-simulator
 /simulators/*/slack-simulator
+backend/tmp/
+
+# Database
+*.db
+simulators.db
 
 # Logs
 *.log

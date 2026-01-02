@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.go"
+      run: cd backend && go fmt ./...
+    lint:
+      glob: "*.go"
+      run: make lint

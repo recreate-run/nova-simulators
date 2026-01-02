@@ -3,9 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
-	"github.com/recreate-run/nova-simulators/pkg/database"
-	"github.com/recreate-run/nova-simulators/pkg/logging"
+	"github.com/recreate-run/nova-simulators/internal/database"
+	"github.com/recreate-run/nova-simulators/internal/logging"
 	"github.com/recreate-run/nova-simulators/simulators/slack"
 )
 
@@ -19,9 +20,14 @@ func main() {
 
 	// Initialize database
 	if err := database.InitDB("file:simulators.db"); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		logging.CloseLogger()
+		log.Panicf("Failed to initialize database: %v", err)
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Printf("Failed to close database: %v", err)
+		}
+	}()
 
 	queries := database.GetQueries()
 
@@ -39,5 +45,15 @@ func main() {
 	log.Println("Nova Simulators starting on :9000")
 	log.Println("  - Slack: http://localhost:9000/slack")
 	log.Println("Logging to: simulator.log")
-	log.Fatal(http.ListenAndServe(":9000", mux))
+
+	// Create server with timeouts
+	server := &http.Server{
+		Addr:         ":9000",
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	log.Fatal(server.ListenAndServe()) //nolint:gocritic // exitAfterDefer is acceptable here - server.ListenAndServe only returns on fatal error
 }

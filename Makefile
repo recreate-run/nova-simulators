@@ -30,10 +30,10 @@ dev:
 test:
 	@if [ -n "$(SIMULATOR)" ]; then \
 		echo "Running tests for $(SIMULATOR) simulator..."; \
-		go test ./simulators/$(SIMULATOR) -v; \
+		cd backend && go test ./simulators/$(SIMULATOR) -v; \
 	else \
 		echo "Running all tests..."; \
-		go test ./... -v; \
+		cd backend && go test ./... -v; \
 	fi
 
 # Display the last 100 lines of development log with ANSI codes stripped
@@ -46,8 +46,8 @@ tail-backend-log:
 
 # Display the last 100 lines of simulator API request/response logs
 tail-network-log:
-	@if [ -f $(MAKEFILE_DIR)cmd/server/simulator.log ]; then \
-		tail -100 $(MAKEFILE_DIR)cmd/server/simulator.log; \
+	@if [ -f $(MAKEFILE_DIR)backend/cmd/server/simulator.log ]; then \
+		tail -100 $(MAKEFILE_DIR)backend/cmd/server/simulator.log; \
 	else \
 		echo "simulator.log not found. Run 'make dev' first."; \
 	fi
@@ -55,14 +55,14 @@ tail-network-log:
 # Generate type-safe Go code from SQL queries using sqlc
 sqlc-generate:
 	@echo "Generating type-safe Go code from SQL queries..."
-	@sqlc generate
+	@cd backend && sqlc generate
 	@echo "✅ Code generation complete!"
 
 # Clean log files and build artifacts
 clean:
 	@echo "Cleaning log files and build artifacts..."
 	@rm -f dev.log dev-prev.log
-	@rm -f cmd/server/simulator.log
+	@rm -f backend/cmd/server/simulator.log
 	@rm -f .shoreman.pid
 	@echo "✅ Cleaned successfully!"
 
@@ -75,3 +75,14 @@ docker-up:
 docker-down:
 	@docker-compose down
 	@echo "✅ Simulators stopped"
+
+
+# Run linters for both Go backend and frontend
+backend-lint:
+	@echo "Linting backend ..."
+	cd backend && golangci-lint run
+
+
+# Run linters for both Go backend and frontend
+lint: backend-lint 
+	@echo "✅ All linting completed successfully!"

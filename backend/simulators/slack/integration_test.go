@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
-	"github.com/recreate-run/nova-simulators/pkg/database"
-	"github.com/recreate-run/nova-simulators/pkg/transport"
+	"github.com/recreate-run/nova-simulators/internal/database"
+	"github.com/recreate-run/nova-simulators/internal/transport"
 	simulatorSlack "github.com/recreate-run/nova-simulators/simulators/slack"
 	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +17,7 @@ import (
 )
 
 func setupTestDB(t *testing.T) *database.Queries {
+	t.Helper()
 	// Use in-memory SQLite database for tests
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err, "Failed to open test database")
@@ -108,13 +109,14 @@ func TestSlackSimulatorIntegration(t *testing.T) {
 		// Find our message in the history
 		found := false
 		for _, msg := range history.Messages {
-			if msg.Timestamp == expectedTimestamp {
-				assert.Equal(t, expectedText, msg.Text, "Message text should match")
-				assert.Equal(t, "message", msg.Type, "Message type should be 'message'")
-				assert.Equal(t, "U123456", msg.User, "Message user should match")
-				found = true
-				break
+			if msg.Timestamp != expectedTimestamp {
+				continue
 			}
+			assert.Equal(t, expectedText, msg.Text, "Message text should match")
+			assert.Equal(t, "message", msg.Type, "Message type should be 'message'")
+			assert.Equal(t, "U123456", msg.User, "Message user should match")
+			found = true
+			break
 		}
 		assert.True(t, found, "Posted message should appear in history")
 	})

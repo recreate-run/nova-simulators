@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/recreate-run/nova-simulators/pkg/database"
+	"github.com/recreate-run/nova-simulators/internal/database"
 )
 
 type Message struct {
@@ -86,7 +86,7 @@ func (h *Handler) handleAuthTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Println("[slack] ✓ Auth test successful")
 }
 
@@ -97,7 +97,7 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		log.Printf("[slack] ✗ Failed to parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[slack] ✗ Failed to insert message: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
 		return
 	}
 
@@ -134,7 +134,7 @@ func (h *Handler) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Println("[slack] ✓ Message posted successfully")
 }
 
@@ -145,7 +145,7 @@ func (h *Handler) handleConversationsList(w http.ResponseWriter, r *http.Request
 	if err := r.ParseForm(); err != nil {
 		log.Printf("[slack] ✗ Failed to parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *Handler) handleConversationsList(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		log.Printf("[slack] ✗ Failed to query channels: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *Handler) handleConversationsList(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[slack] ✓ Returned %d channels", len(channels))
 }
 
@@ -188,7 +188,7 @@ func (h *Handler) handleConversationHistory(w http.ResponseWriter, r *http.Reque
 	if err := r.ParseForm(); err != nil {
 		log.Printf("[slack] ✗ Failed to parse form: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "invalid_form_data"})
 		return
 	}
 
@@ -202,7 +202,7 @@ func (h *Handler) handleConversationHistory(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		log.Printf("[slack] ✗ Failed to query messages: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
+		_ = json.NewEncoder(w).Encode(SlackResponse{OK: false, Error: "internal_error"})
 		return
 	}
 
@@ -223,6 +223,6 @@ func (h *Handler) handleConversationHistory(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[slack] ✓ Returned %d messages", len(messages))
 }

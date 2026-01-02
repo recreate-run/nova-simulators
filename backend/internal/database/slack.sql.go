@@ -7,19 +7,76 @@ package database
 
 import (
 	"context"
+	"database/sql"
 )
 
+const createChannel = `-- name: CreateChannel :exec
+INSERT INTO slack_channels (id, name, created_at, session_id)
+VALUES (?, ?, ?, ?)
+`
+
+type CreateChannelParams struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+	SessionID string `json:"session_id"`
+}
+
+func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) error {
+	_, err := q.db.ExecContext(ctx, createChannel,
+		arg.ID,
+		arg.Name,
+		arg.CreatedAt,
+		arg.SessionID,
+	)
+	return err
+}
+
+const createFile = `-- name: CreateFile :exec
+INSERT INTO slack_files (id, filename, title, filetype, size, upload_url, channel_id, user_id, session_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreateFileParams struct {
+	ID        string         `json:"id"`
+	Filename  string         `json:"filename"`
+	Title     sql.NullString `json:"title"`
+	Filetype  sql.NullString `json:"filetype"`
+	Size      int64          `json:"size"`
+	UploadUrl sql.NullString `json:"upload_url"`
+	ChannelID sql.NullString `json:"channel_id"`
+	UserID    string         `json:"user_id"`
+	SessionID string         `json:"session_id"`
+}
+
+func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) error {
+	_, err := q.db.ExecContext(ctx, createFile,
+		arg.ID,
+		arg.Filename,
+		arg.Title,
+		arg.Filetype,
+		arg.Size,
+		arg.UploadUrl,
+		arg.ChannelID,
+		arg.UserID,
+		arg.SessionID,
+	)
+	return err
+}
+
 const createMessage = `-- name: CreateMessage :exec
-INSERT INTO slack_messages (channel_id, type, user_id, text, timestamp)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO slack_messages (channel_id, type, user_id, text, timestamp, attachments, session_id)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateMessageParams struct {
-	ChannelID string `json:"channel_id"`
-	Type      string `json:"type"`
-	UserID    string `json:"user_id"`
-	Text      string `json:"text"`
-	Timestamp string `json:"timestamp"`
+	ChannelID   string         `json:"channel_id"`
+	Type        string         `json:"type"`
+	UserID      string         `json:"user_id"`
+	Text        string         `json:"text"`
+	Timestamp   string         `json:"timestamp"`
+	Attachments sql.NullString `json:"attachments"`
+	SessionID   string         `json:"session_id"`
 }
 
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) error {
@@ -29,39 +86,175 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) er
 		arg.UserID,
 		arg.Text,
 		arg.Timestamp,
+		arg.Attachments,
+		arg.SessionID,
 	)
+	return err
+}
+
+const createSession = `-- name: CreateSession :exec
+INSERT INTO sessions (id) VALUES (?)
+`
+
+// Session management queries
+func (q *Queries) CreateSession(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, createSession, id)
+	return err
+}
+
+const createUser = `-- name: CreateUser :exec
+INSERT INTO slack_users (id, team_id, name, real_name, email, display_name, first_name, last_name,
+                         is_admin, is_owner, is_bot, timezone, timezone_label, timezone_offset,
+                         image_24, image_32, image_48, image_72, image_192, image_512, session_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreateUserParams struct {
+	ID             string         `json:"id"`
+	TeamID         string         `json:"team_id"`
+	Name           string         `json:"name"`
+	RealName       string         `json:"real_name"`
+	Email          sql.NullString `json:"email"`
+	DisplayName    sql.NullString `json:"display_name"`
+	FirstName      sql.NullString `json:"first_name"`
+	LastName       sql.NullString `json:"last_name"`
+	IsAdmin        int64          `json:"is_admin"`
+	IsOwner        int64          `json:"is_owner"`
+	IsBot          int64          `json:"is_bot"`
+	Timezone       sql.NullString `json:"timezone"`
+	TimezoneLabel  sql.NullString `json:"timezone_label"`
+	TimezoneOffset sql.NullInt64  `json:"timezone_offset"`
+	Image24        sql.NullString `json:"image_24"`
+	Image32        sql.NullString `json:"image_32"`
+	Image48        sql.NullString `json:"image_48"`
+	Image72        sql.NullString `json:"image_72"`
+	Image192       sql.NullString `json:"image_192"`
+	Image512       sql.NullString `json:"image_512"`
+	SessionID      string         `json:"session_id"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
+	_, err := q.db.ExecContext(ctx, createUser,
+		arg.ID,
+		arg.TeamID,
+		arg.Name,
+		arg.RealName,
+		arg.Email,
+		arg.DisplayName,
+		arg.FirstName,
+		arg.LastName,
+		arg.IsAdmin,
+		arg.IsOwner,
+		arg.IsBot,
+		arg.Timezone,
+		arg.TimezoneLabel,
+		arg.TimezoneOffset,
+		arg.Image24,
+		arg.Image32,
+		arg.Image48,
+		arg.Image72,
+		arg.Image192,
+		arg.Image512,
+		arg.SessionID,
+	)
+	return err
+}
+
+const deleteSessionData = `-- name: DeleteSessionData :exec
+DELETE FROM slack_messages WHERE session_id = ?
+`
+
+func (q *Queries) DeleteSessionData(ctx context.Context, sessionID string) error {
+	_, err := q.db.ExecContext(ctx, deleteSessionData, sessionID)
 	return err
 }
 
 const getChannelByID = `-- name: GetChannelByID :one
 SELECT id, name, created_at
 FROM slack_channels
-WHERE id = ?
+WHERE id = ? AND session_id = ?
 `
 
-func (q *Queries) GetChannelByID(ctx context.Context, id string) (SlackChannel, error) {
-	row := q.db.QueryRowContext(ctx, getChannelByID, id)
-	var i SlackChannel
+type GetChannelByIDParams struct {
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
+}
+
+type GetChannelByIDRow struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func (q *Queries) GetChannelByID(ctx context.Context, arg GetChannelByIDParams) (GetChannelByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getChannelByID, arg.ID, arg.SessionID)
+	var i GetChannelByIDRow
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err
 }
 
+const getFileByID = `-- name: GetFileByID :one
+SELECT id, filename, title, filetype, size, upload_url, channel_id, user_id, created_at
+FROM slack_files
+WHERE id = ? AND session_id = ?
+`
+
+type GetFileByIDParams struct {
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
+}
+
+type GetFileByIDRow struct {
+	ID        string         `json:"id"`
+	Filename  string         `json:"filename"`
+	Title     sql.NullString `json:"title"`
+	Filetype  sql.NullString `json:"filetype"`
+	Size      int64          `json:"size"`
+	UploadUrl sql.NullString `json:"upload_url"`
+	ChannelID sql.NullString `json:"channel_id"`
+	UserID    string         `json:"user_id"`
+	CreatedAt int64          `json:"created_at"`
+}
+
+func (q *Queries) GetFileByID(ctx context.Context, arg GetFileByIDParams) (GetFileByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getFileByID, arg.ID, arg.SessionID)
+	var i GetFileByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Filename,
+		&i.Title,
+		&i.Filetype,
+		&i.Size,
+		&i.UploadUrl,
+		&i.ChannelID,
+		&i.UserID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getMessagesByChannel = `-- name: GetMessagesByChannel :many
-SELECT type, user_id, text, timestamp
+SELECT type, user_id, text, timestamp, attachments
 FROM slack_messages
-WHERE channel_id = ?
+WHERE channel_id = ? AND session_id = ?
 ORDER BY timestamp DESC
 `
 
-type GetMessagesByChannelRow struct {
-	Type      string `json:"type"`
-	UserID    string `json:"user_id"`
-	Text      string `json:"text"`
-	Timestamp string `json:"timestamp"`
+type GetMessagesByChannelParams struct {
+	ChannelID string `json:"channel_id"`
+	SessionID string `json:"session_id"`
 }
 
-func (q *Queries) GetMessagesByChannel(ctx context.Context, channelID string) ([]GetMessagesByChannelRow, error) {
-	rows, err := q.db.QueryContext(ctx, getMessagesByChannel, channelID)
+type GetMessagesByChannelRow struct {
+	Type        string         `json:"type"`
+	UserID      string         `json:"user_id"`
+	Text        string         `json:"text"`
+	Timestamp   string         `json:"timestamp"`
+	Attachments sql.NullString `json:"attachments"`
+}
+
+func (q *Queries) GetMessagesByChannel(ctx context.Context, arg GetMessagesByChannelParams) ([]GetMessagesByChannelRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMessagesByChannel, arg.ChannelID, arg.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +267,7 @@ func (q *Queries) GetMessagesByChannel(ctx context.Context, channelID string) ([
 			&i.UserID,
 			&i.Text,
 			&i.Timestamp,
+			&i.Attachments,
 		); err != nil {
 			return nil, err
 		}
@@ -88,21 +282,105 @@ func (q *Queries) GetMessagesByChannel(ctx context.Context, channelID string) ([
 	return items, nil
 }
 
+const getSession = `-- name: GetSession :one
+SELECT id, created_at, last_accessed FROM sessions WHERE id = ?
+`
+
+func (q *Queries) GetSession(ctx context.Context, id string) (Session, error) {
+	row := q.db.QueryRowContext(ctx, getSession, id)
+	var i Session
+	err := row.Scan(&i.ID, &i.CreatedAt, &i.LastAccessed)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, team_id, name, real_name, email, display_name, first_name, last_name,
+       is_admin, is_owner, is_bot, timezone, timezone_label, timezone_offset,
+       image_24, image_32, image_48, image_72, image_192, image_512, created_at
+FROM slack_users
+WHERE id = ? AND session_id = ?
+`
+
+type GetUserByIDParams struct {
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
+}
+
+type GetUserByIDRow struct {
+	ID             string         `json:"id"`
+	TeamID         string         `json:"team_id"`
+	Name           string         `json:"name"`
+	RealName       string         `json:"real_name"`
+	Email          sql.NullString `json:"email"`
+	DisplayName    sql.NullString `json:"display_name"`
+	FirstName      sql.NullString `json:"first_name"`
+	LastName       sql.NullString `json:"last_name"`
+	IsAdmin        int64          `json:"is_admin"`
+	IsOwner        int64          `json:"is_owner"`
+	IsBot          int64          `json:"is_bot"`
+	Timezone       sql.NullString `json:"timezone"`
+	TimezoneLabel  sql.NullString `json:"timezone_label"`
+	TimezoneOffset sql.NullInt64  `json:"timezone_offset"`
+	Image24        sql.NullString `json:"image_24"`
+	Image32        sql.NullString `json:"image_32"`
+	Image48        sql.NullString `json:"image_48"`
+	Image72        sql.NullString `json:"image_72"`
+	Image192       sql.NullString `json:"image_192"`
+	Image512       sql.NullString `json:"image_512"`
+	CreatedAt      int64          `json:"created_at"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (GetUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, arg.ID, arg.SessionID)
+	var i GetUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.TeamID,
+		&i.Name,
+		&i.RealName,
+		&i.Email,
+		&i.DisplayName,
+		&i.FirstName,
+		&i.LastName,
+		&i.IsAdmin,
+		&i.IsOwner,
+		&i.IsBot,
+		&i.Timezone,
+		&i.TimezoneLabel,
+		&i.TimezoneOffset,
+		&i.Image24,
+		&i.Image32,
+		&i.Image48,
+		&i.Image72,
+		&i.Image192,
+		&i.Image512,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listChannels = `-- name: ListChannels :many
 SELECT id, name, created_at
 FROM slack_channels
+WHERE session_id = ?
 ORDER BY created_at ASC
 `
 
-func (q *Queries) ListChannels(ctx context.Context) ([]SlackChannel, error) {
-	rows, err := q.db.QueryContext(ctx, listChannels)
+type ListChannelsRow struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func (q *Queries) ListChannels(ctx context.Context, sessionID string) ([]ListChannelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listChannels, sessionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []SlackChannel{}
+	items := []ListChannelsRow{}
 	for rows.Next() {
-		var i SlackChannel
+		var i ListChannelsRow
 		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -115,4 +393,13 @@ func (q *Queries) ListChannels(ctx context.Context) ([]SlackChannel, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateSessionAccess = `-- name: UpdateSessionAccess :exec
+UPDATE sessions SET last_accessed = unixepoch() WHERE id = ?
+`
+
+func (q *Queries) UpdateSessionAccess(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, updateSessionAccess, id)
+	return err
 }

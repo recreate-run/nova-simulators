@@ -11,6 +11,7 @@ import (
 type SimulatorTransport struct {
 	baseTransport http.RoundTripper
 	routingMap    map[string]string // Maps real host to simulator URL (e.g., "slack.com" -> "localhost:9000/slack")
+	sessionID     string            // Session ID to pass to simulators
 }
 
 // NewSimulatorTransport creates a new transport that routes requests to simulators
@@ -18,7 +19,14 @@ func NewSimulatorTransport(routingMap map[string]string) *SimulatorTransport {
 	return &SimulatorTransport{
 		baseTransport: http.DefaultTransport,
 		routingMap:    routingMap,
+		sessionID:     "default", // Use default session by default
 	}
+}
+
+// WithSessionID sets a session ID for this transport
+func (t *SimulatorTransport) WithSessionID(sessionID string) *SimulatorTransport {
+	t.sessionID = sessionID
+	return t
 }
 
 // RoundTrip implements http.RoundTripper interface
@@ -49,8 +57,13 @@ func (t *SimulatorTransport) RoundTrip(req *http.Request) (*http.Response, error
 		clonedReq.URL.Path = pathPrefix + clonedReq.URL.Path
 		clonedReq.Host = simulatorHost
 
-		log.Printf("[Interceptor] Routing %s %s → http://%s%s",
-			req.Method, originalHost, clonedReq.URL.Host, clonedReq.URL.Path)
+		// Add session ID header if set
+		if t.sessionID != "" {
+			clonedReq.Header.Set("X-Session-ID", t.sessionID)
+		}
+
+		log.Printf("[Interceptor] Routing %s %s → http://%s%s (session: %s)",
+			req.Method, originalHost, clonedReq.URL.Host, clonedReq.URL.Path, t.sessionID)
 
 		// Forward the request to the simulator
 		resp, err := t.baseTransport.RoundTrip(clonedReq)

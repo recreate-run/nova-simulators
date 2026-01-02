@@ -4,18 +4,86 @@
 
 package database
 
+import (
+	"database/sql"
+)
+
+type GmailMessage struct {
+	ID           string         `json:"id"`
+	ThreadID     string         `json:"thread_id"`
+	FromEmail    string         `json:"from_email"`
+	ToEmail      string         `json:"to_email"`
+	Subject      string         `json:"subject"`
+	BodyPlain    sql.NullString `json:"body_plain"`
+	BodyHtml     sql.NullString `json:"body_html"`
+	RawMessage   string         `json:"raw_message"`
+	Snippet      sql.NullString `json:"snippet"`
+	LabelIds     sql.NullString `json:"label_ids"`
+	InternalDate int64          `json:"internal_date"`
+	SizeEstimate int64          `json:"size_estimate"`
+	CreatedAt    int64          `json:"created_at"`
+	SessionID    string         `json:"session_id"`
+}
+
+type Session struct {
+	ID           string `json:"id"`
+	CreatedAt    int64  `json:"created_at"`
+	LastAccessed int64  `json:"last_accessed"`
+}
+
 type SlackChannel struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	CreatedAt int64  `json:"created_at"`
+	SessionID string `json:"session_id"`
+}
+
+type SlackFile struct {
+	ID        string         `json:"id"`
+	Filename  string         `json:"filename"`
+	Title     sql.NullString `json:"title"`
+	Filetype  sql.NullString `json:"filetype"`
+	Size      int64          `json:"size"`
+	UploadUrl sql.NullString `json:"upload_url"`
+	ChannelID sql.NullString `json:"channel_id"`
+	UserID    string         `json:"user_id"`
+	CreatedAt int64          `json:"created_at"`
+	SessionID string         `json:"session_id"`
 }
 
 type SlackMessage struct {
-	ID        int64  `json:"id"`
-	ChannelID string `json:"channel_id"`
-	Type      string `json:"type"`
-	UserID    string `json:"user_id"`
-	Text      string `json:"text"`
-	Timestamp string `json:"timestamp"`
-	CreatedAt int64  `json:"created_at"`
+	ID          int64          `json:"id"`
+	ChannelID   string         `json:"channel_id"`
+	Type        string         `json:"type"`
+	UserID      string         `json:"user_id"`
+	Text        string         `json:"text"`
+	Timestamp   string         `json:"timestamp"`
+	CreatedAt   int64          `json:"created_at"`
+	Attachments sql.NullString `json:"attachments"`
+	SessionID   string         `json:"session_id"`
+}
+
+type SlackUser struct {
+	ID             string         `json:"id"`
+	TeamID         string         `json:"team_id"`
+	Name           string         `json:"name"`
+	RealName       string         `json:"real_name"`
+	Email          sql.NullString `json:"email"`
+	DisplayName    sql.NullString `json:"display_name"`
+	FirstName      sql.NullString `json:"first_name"`
+	LastName       sql.NullString `json:"last_name"`
+	IsAdmin        int64          `json:"is_admin"`
+	IsOwner        int64          `json:"is_owner"`
+	IsBot          int64          `json:"is_bot"`
+	Timezone       sql.NullString `json:"timezone"`
+	TimezoneLabel  sql.NullString `json:"timezone_label"`
+	TimezoneOffset sql.NullInt64  `json:"timezone_offset"`
+	Image24        sql.NullString `json:"image_24"`
+	Image32        sql.NullString `json:"image_32"`
+	Image48        sql.NullString `json:"image_48"`
+	Image72        sql.NullString `json:"image_72"`
+	Image192       sql.NullString `json:"image_192"`
+	Image512       sql.NullString `json:"image_512"`
+	CreatedAt      int64          `json:"created_at"`
+	SessionID      string         `json:"session_id"`
 }

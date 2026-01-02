@@ -7,6 +7,8 @@ import (
 
 	"github.com/recreate-run/nova-simulators/internal/database"
 	"github.com/recreate-run/nova-simulators/internal/logging"
+	"github.com/recreate-run/nova-simulators/internal/session"
+	"github.com/recreate-run/nova-simulators/simulators/gmail"
 	"github.com/recreate-run/nova-simulators/simulators/slack"
 )
 
@@ -34,16 +36,27 @@ func main() {
 	// Create main router
 	mux := http.NewServeMux()
 
-	// Register Slack simulator with logging middleware
-	slackHandler := logging.Middleware("slack")(slack.NewHandler(queries))
+	// Register session manager (no session middleware needed for session mgmt endpoints)
+	sessionManager := session.NewManager(queries)
+	mux.Handle("/sessions", sessionManager)
+	mux.Handle("/sessions/", sessionManager)
+
+	// Register Slack simulator with session + logging middleware
+	slackHandler := session.Middleware(logging.Middleware("slack")(slack.NewHandler(queries)))
 	mux.Handle("/slack/", http.StripPrefix("/slack", slackHandler))
 
+	// Register Gmail simulator with session + logging middleware
+	gmailHandler := session.Middleware(logging.Middleware("gmail")(gmail.NewHandler(queries)))
+	mux.Handle("/gmail/", http.StripPrefix("/gmail", gmailHandler))
+
 	// Future simulators will be added here:
-	// hubspotHandler := logging.Middleware("hubspot")(hubspot.NewHandler(db))
+	// hubspotHandler := session.Middleware(logging.Middleware("hubspot")(hubspot.NewHandler(db)))
 	// mux.Handle("/hubspot/", http.StripPrefix("/hubspot", hubspotHandler))
 
 	log.Println("Nova Simulators starting on :9000")
+	log.Println("  - Sessions: http://localhost:9000/sessions")
 	log.Println("  - Slack: http://localhost:9000/slack")
+	log.Println("  - Gmail: http://localhost:9000/gmail")
 	log.Println("Logging to: simulator.log")
 
 	// Create server with timeouts

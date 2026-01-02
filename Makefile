@@ -1,4 +1,4 @@
-.PHONY: dev tail-log tail-network-log clean help
+.PHONY: dev tail-backend-log tail-network-log clean test sqlc-generate help
 
 # Store Makefile directory to allow targets to work from any subdirectory
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -7,8 +7,10 @@ MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 help:
 	@echo "Available targets:"
 	@echo "  dev              - Start all simulators (auto-reload on file changes)"
-	@echo "  tail-log         - Show the last 100 lines of the unified dev log"
+	@echo "  test             - Run integration tests (use SIMULATOR=<name> for specific simulator)"
+	@echo "  tail-backend-log         - Show the last 100 lines of the unified dev log"
 	@echo "  tail-network-log - Show the last 100 lines of simulator API request/response logs"
+	@echo "  sqlc-generate    - Generate type-safe Go code from SQL queries"
 	@echo "  clean            - Clean log files and build artifacts"
 	@echo "  docker-up        - Start all simulators via Docker Compose"
 	@echo "  docker-down      - Stop all Docker containers"
@@ -19,11 +21,23 @@ help:
 dev:
 	@rm -f .shoreman.pid
 	@# Kill any processes on simulator ports
-	@lsof -ti:9001 2>/dev/null | xargs kill -9 2>/dev/null || true
+	@lsof -ti:9000 2>/dev/null | xargs kill -9 2>/dev/null || true
 	@./scripts/shoreman.sh
 
+# Run integration tests
+# Usage: make test                    (run all tests)
+#        make test SIMULATOR=slack    (run specific simulator tests)
+test:
+	@if [ -n "$(SIMULATOR)" ]; then \
+		echo "Running tests for $(SIMULATOR) simulator..."; \
+		go test ./simulators/$(SIMULATOR) -v; \
+	else \
+		echo "Running all tests..."; \
+		go test ./... -v; \
+	fi
+
 # Display the last 100 lines of development log with ANSI codes stripped
-tail-log:
+tail-backend-log:
 	@if [ -f $(MAKEFILE_DIR)dev.log ]; then \
 		tail -100 $(MAKEFILE_DIR)dev.log | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g'; \
 	else \
@@ -32,24 +46,23 @@ tail-log:
 
 # Display the last 100 lines of simulator API request/response logs
 tail-network-log:
-	@LOG_FOUND=false; \
-	for log in $(MAKEFILE_DIR)simulators/*/simulator.log; do \
-		if [ -f "$$log" ]; then \
-			LOG_FOUND=true; \
-			echo "=== $${log} ==="; \
-			tail -100 "$$log"; \
-			echo ""; \
-		fi; \
-	done; \
-	if [ "$$LOG_FOUND" = false ]; then \
-		echo "No simulator logs found. Make sure simulators are running."; \
+	@if [ -f $(MAKEFILE_DIR)cmd/server/simulator.log ]; then \
+		tail -100 $(MAKEFILE_DIR)cmd/server/simulator.log; \
+	else \
+		echo "simulator.log not found. Run 'make dev' first."; \
 	fi
+
+# Generate type-safe Go code from SQL queries using sqlc
+sqlc-generate:
+	@echo "Generating type-safe Go code from SQL queries..."
+	@sqlc generate
+	@echo "✅ Code generation complete!"
 
 # Clean log files and build artifacts
 clean:
 	@echo "Cleaning log files and build artifacts..."
 	@rm -f dev.log dev-prev.log
-	@rm -f simulators/*/simulator.log
+	@rm -f cmd/server/simulator.log
 	@rm -f .shoreman.pid
 	@echo "✅ Cleaned successfully!"
 

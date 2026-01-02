@@ -1,0 +1,12 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(go run:*)",
+			"Bash(make tail-backend-log:*)",
+			"Bash(make tail-network-log:*)",
+			"Bash(go test:*)",
+			"Bash(go get:*)",
+			"Bash(go mod tidy:*)"
+		]
+	}
+}

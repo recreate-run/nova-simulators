@@ -19,12 +19,13 @@ This repository provides local HTTP simulators that mimic real SaaS APIs (Slack,
 **Port**: 9001
 
 **Endpoints**:
+
 - `POST /api/auth.test` - Authentication verification
 - `POST /api/chat.postMessage` - Send messages to channels
 - `POST /api/conversations.list` - Get channel list
 - `POST /api/conversations.history` - Get message history
 
-**Logs to**: `simulator.log` in simulator directory
+**Logs to**: `network.log` in simulator directory
 
 ## Quick Start
 
@@ -37,8 +38,9 @@ make dev
 This starts all simulators with unified logging to `dev.log`. Auto-reloads on file changes.
 
 View logs in real-time:
+
 ```bash
-make tail-log          # Unified process logs
+make tail-backend-log          # Unified process logs
 make tail-network-log  # Simulator API request/response logs
 ```
 
@@ -89,13 +91,14 @@ func main() {
 ## Request/Response Logging
 
 All simulators log full request/response data:
+
 - Timestamp
 - Method and path
 - Request body (form-encoded)
 - Response body (JSON, pretty-printed)
 - Duration and status code
 
-View logs: `tail -f simulators/slack/simulator.log`
+View logs: `tail -f simulators/slack/network.log`
 
 ## Integration with nova-workflow-starter
 

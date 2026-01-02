@@ -1,1 +1,1 @@
-slack: cd simulators/slack && go run .
+server: cd cmd/server && go run .

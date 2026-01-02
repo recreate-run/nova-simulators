@@ -3,16 +3,10 @@ package slack_test
 import (
 	"context"
 	"database/sql"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/pressly/goose/v3"
 	"github.com/recreate-run/nova-simulators/internal/database"
-	"github.com/recreate-run/nova-simulators/internal/session"
-	"github.com/recreate-run/nova-simulators/internal/transport"
-	simulatorSlack "github.com/recreate-run/nova-simulators/simulators/slack"
-	"github.com/slack-go/slack"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
@@ -35,8 +29,8 @@ func setupTestDBForSeed(t *testing.T) *database.Queries {
 	return database.New(db)
 }
 
-// TestSlackInitialStateSeed demonstrates seeding arbitrary initial state for Slack simulator
-func TestSlackInitialStateSeed(t *testing.T) {
+// TestSeedSlackData demonstrates seeding complete initial state using SQL only
+func TestSeedSlackData(t *testing.T) {
 	// Setup: Create test database
 	queries := setupTestDBForSeed(t)
 	ctx := context.Background()
@@ -46,46 +40,12 @@ func TestSlackInitialStateSeed(t *testing.T) {
 	err := queries.CreateSession(ctx, sessionID)
 	require.NoError(t, err, "Failed to create session")
 
-	// Seed: Create custom channels and users
+	// Seed: Create channels, users, and messages via SQL
 	channels, users := seedSlackTestData(t, ctx, queries, sessionID)
+	seedSlackMessages(t, ctx, queries, sessionID, channels)
 
-	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorSlack.NewHandler(queries))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	// Install HTTP interceptor to route slack.com to test server with session ID
-	http.DefaultTransport = transport.NewSimulatorTransport(map[string]string{
-		"slack.com": server.URL[7:], // Strip "http://" prefix
-	}).WithSessionID(sessionID)
-
-	// Create Slack client
-	client := slack.New("fake-token-12345")
-
-	// Seed: Post initial messages to channels using Slack API
-	t.Run("PostInitialMessages", func(t *testing.T) {
-		postInitialMessages(t, client, channels)
-	})
-
-	// Verify: Check that channels are queryable
-	t.Run("VerifyChannels", func(t *testing.T) {
-		verifyChannels(t, client)
-	})
-
-	// Verify: Check that users are queryable
-	t.Run("VerifyUsers", func(t *testing.T) {
-		verifyUsers(t, client, users)
-	})
-
-	// Verify: Check that messages are queryable
-	t.Run("VerifyMessages", func(t *testing.T) {
-		verifyMessages(t, client, channels[0].ID)
-	})
-
-	// Verify: Check database isolation - ensure all data is correctly stored
-	t.Run("VerifyDatabaseIsolation", func(t *testing.T) {
-		verifyDatabaseIsolation(t, ctx, queries, sessionID, channels, users)
-	})
+	// Verify: Check database state - ensure all data is correctly stored
+	verifyDatabaseState(t, ctx, queries, sessionID, channels, users)
 }
 
 // seedSlackTestData creates channels and users for testing
@@ -193,98 +153,38 @@ func seedSlackTestData(t *testing.T, ctx context.Context, queries *database.Quer
 	return channels, users
 }
 
-// postInitialMessages posts test messages to channels
-func postInitialMessages(t *testing.T, client *slack.Client, channels []struct{ ID, Name string }) {
+// seedSlackMessages creates messages via SQL
+func seedSlackMessages(t *testing.T, ctx context.Context, queries *database.Queries, sessionID string, channels []struct{ ID, Name string }) {
 	t.Helper()
 
-	// Post welcome message to general
-	_, ts1, err := client.PostMessage(
-		channels[0].ID,
-		slack.MsgOptionText("Welcome to the workspace!", false),
-	)
-	require.NoError(t, err, "Failed to post message to general")
-	assert.NotEmpty(t, ts1, "Message timestamp should be returned")
-
-	// Post message to engineering
-	_, ts2, err := client.PostMessage(
-		channels[2].ID,
-		slack.MsgOptionText("Engineering team standup at 10am", false),
-	)
-	require.NoError(t, err, "Failed to post message to engineering")
-	assert.NotEmpty(t, ts2, "Message timestamp should be returned")
-}
-
-// verifyChannels verifies that channels can be queried
-func verifyChannels(t *testing.T, client *slack.Client) {
-	t.Helper()
-
-	channelsList, _, err := client.GetConversations(&slack.GetConversationsParameters{
-		ExcludeArchived: true,
-		Types:           []string{"public_channel", "private_channel"},
-	})
-
-	require.NoError(t, err, "GetConversations should succeed")
-	assert.Len(t, channelsList, 3, "Should have 3 channels")
-
-	// Verify channel names
-	channelMap := make(map[string]slack.Channel)
-	for i := range channelsList {
-		channelMap[channelsList[i].Name] = channelsList[i]
+	// Create messages in different channels
+	messages := []struct {
+		text      string
+		channelID string
+		userID    string
+		timestamp string
+	}{
+		{"Welcome to the workspace!", channels[0].ID, "U001_" + sessionID, "1640000100.000000"},
+		{"Hello everyone!", channels[0].ID, "U002_" + sessionID, "1640000101.000000"},
+		{"Engineering team standup at 10am", channels[2].ID, "U003_" + sessionID, "1640000102.000000"},
 	}
 
-	assert.Contains(t, channelMap, "general", "Should have general channel")
-	assert.Contains(t, channelMap, "random", "Should have random channel")
-	assert.Contains(t, channelMap, "engineering", "Should have engineering channel")
-}
-
-// verifyUsers verifies that users can be queried
-func verifyUsers(t *testing.T, client *slack.Client, users []struct {
-	ID          string
-	Name        string
-	RealName    string
-	Email       string
-	DisplayName string
-	FirstName   string
-	LastName    string
-}) {
-	t.Helper()
-
-	// Get user info for each user
-	for _, u := range users {
-		user, err := client.GetUserInfo(u.ID)
-		require.NoError(t, err, "GetUserInfo should succeed for user: %s", u.Name)
-		assert.Equal(t, u.ID, user.ID, "User ID should match")
-		assert.Equal(t, u.Name, user.Name, "User name should match")
-		assert.Equal(t, u.RealName, user.RealName, "Real name should match")
-		assert.Equal(t, u.Email, user.Profile.Email, "Email should match")
+	for _, msg := range messages {
+		err := queries.CreateMessage(ctx, database.CreateMessageParams{
+			ChannelID:   msg.channelID,
+			Type:        "message",
+			UserID:      msg.userID,
+			Text:        msg.text,
+			Timestamp:   msg.timestamp,
+			Attachments: database.StringToNullString(""),
+			SessionID:   sessionID,
+		})
+		require.NoError(t, err, "Failed to create message: %s", msg.text)
 	}
 }
 
-// verifyMessages verifies that messages can be queried
-func verifyMessages(t *testing.T, client *slack.Client, channelID string) {
-	t.Helper()
-
-	// Get conversation history for general
-	history, err := client.GetConversationHistory(&slack.GetConversationHistoryParameters{
-		ChannelID: channelID,
-		Limit:     10,
-	})
-	require.NoError(t, err, "GetConversationHistory should succeed")
-	assert.GreaterOrEqual(t, len(history.Messages), 1, "Should have at least 1 message in general")
-
-	// Verify message content
-	found := false
-	for i := range history.Messages {
-		if history.Messages[i].Text == "Welcome to the workspace!" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "Welcome message should be in history")
-}
-
-// verifyDatabaseIsolation verifies database isolation
-func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *database.Queries, sessionID string,
+// verifyDatabaseState verifies all seeded data exists in database
+func verifyDatabaseState(t *testing.T, ctx context.Context, queries *database.Queries, sessionID string,
 	channels []struct{ ID, Name string }, users []struct {
 		ID          string
 		Name        string
@@ -296,12 +196,11 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	}) {
 	t.Helper()
 
-	// Query channels from database
+	// Verify channels
 	dbChannels, err := queries.ListChannels(ctx, sessionID)
 	require.NoError(t, err, "ListChannels should succeed")
 	assert.Len(t, dbChannels, 3, "Should have 3 channels in database")
 
-	// Verify channel names
 	channelNames := make(map[string]bool)
 	for _, ch := range dbChannels {
 		channelNames[ch.Name] = true
@@ -310,7 +209,7 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	assert.True(t, channelNames["random"], "Should have random channel")
 	assert.True(t, channelNames["engineering"], "Should have engineering channel")
 
-	// Query users from database
+	// Verify users
 	for _, u := range users {
 		dbUser, err := queries.GetUserByID(ctx, database.GetUserByIDParams{
 			ID:        u.ID,
@@ -318,17 +217,18 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 		})
 		require.NoError(t, err, "GetUserByID should succeed for user: %s", u.Name)
 		assert.Equal(t, u.Name, dbUser.Name, "User name should match in database")
+		assert.Equal(t, u.RealName, dbUser.RealName, "Real name should match in database")
 	}
 
-	// Query messages from database
+	// Verify messages in general channel
 	dbMessages, err := queries.GetMessagesByChannel(ctx, database.GetMessagesByChannelParams{
 		ChannelID: channels[0].ID,
 		SessionID: sessionID,
 	})
 	require.NoError(t, err, "GetMessagesByChannel should succeed")
-	assert.GreaterOrEqual(t, len(dbMessages), 1, "Should have at least 1 message in database")
+	assert.GreaterOrEqual(t, len(dbMessages), 2, "Should have at least 2 messages in general channel")
 
-	// Verify message content
+	// Verify specific message content
 	found := false
 	for _, m := range dbMessages {
 		if m.Text == "Welcome to the workspace!" {
@@ -337,4 +237,12 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 		}
 	}
 	assert.True(t, found, "Welcome message should be in database")
+
+	// Verify engineering channel messages
+	dbEngMessages, err := queries.GetMessagesByChannel(ctx, database.GetMessagesByChannelParams{
+		ChannelID: channels[2].ID,
+		SessionID: sessionID,
+	})
+	require.NoError(t, err, "GetMessagesByChannel should succeed for engineering")
+	assert.GreaterOrEqual(t, len(dbEngMessages), 1, "Should have at least 1 message in engineering channel")
 }

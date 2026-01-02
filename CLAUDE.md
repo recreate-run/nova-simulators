@@ -55,6 +55,7 @@ Testing:
 - Run `make test` to execute all integration tests
 - Run `make test SIMULATOR=slack` for specific simulator tests
 - Tests use `httptest.NewServer()` for isolated testing without manual server startup
+- Seed tests (`seed_test.go`) demonstrate SQL-only seeding pattern—create all initial state (channels, users, messages) via database queries without HTTP/API calls
 
 Logging:
 

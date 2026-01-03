@@ -177,3 +177,10 @@ DELETE FROM github_branches WHERE session_id = ?;
 DELETE FROM github_workflows WHERE session_id = ?;
 DELETE FROM github_workflow_runs WHERE session_id = ?;
 DELETE FROM github_issue_comments WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListGithubIssuesBySession :many
+SELECT id, repo_owner, repo_name, number, title, body, state, created_at, updated_at
+FROM github_issues
+WHERE session_id = ?
+ORDER BY created_at DESC;

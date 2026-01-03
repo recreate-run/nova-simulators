@@ -266,6 +266,61 @@ func (q *Queries) ListJiraComments(ctx context.Context, arg ListJiraCommentsPara
 	return items, nil
 }
 
+const listJiraIssuesBySession = `-- name: ListJiraIssuesBySession :many
+SELECT id, key, project_key, issue_type, summary, description, assignee, status, created_at, updated_at
+FROM jira_issues
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListJiraIssuesBySessionRow struct {
+	ID          string         `json:"id"`
+	Key         string         `json:"key"`
+	ProjectKey  string         `json:"project_key"`
+	IssueType   string         `json:"issue_type"`
+	Summary     string         `json:"summary"`
+	Description sql.NullString `json:"description"`
+	Assignee    sql.NullString `json:"assignee"`
+	Status      string         `json:"status"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+// UI data queries
+func (q *Queries) ListJiraIssuesBySession(ctx context.Context, sessionID string) ([]ListJiraIssuesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listJiraIssuesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListJiraIssuesBySessionRow{}
+	for rows.Next() {
+		var i ListJiraIssuesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ProjectKey,
+			&i.IssueType,
+			&i.Summary,
+			&i.Description,
+			&i.Assignee,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listJiraProjects = `-- name: ListJiraProjects :many
 SELECT id, key, name, created_at
 FROM jira_projects

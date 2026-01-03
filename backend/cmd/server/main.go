@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,32 @@ import (
 	"github.com/recreate-run/nova-simulators/simulators/whatsapp"
 )
 
+//go:embed ui
+var uiFiles embed.FS
+
+// corsMiddleware adds CORS headers for frontend development
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow frontend dev server
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "http://localhost:3000"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Session-ID, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Initialize unified logger
 	log.SetFlags(0)
@@ -46,6 +73,10 @@ func main() {
 	}()
 
 	queries := database.GetQueries()
+
+	// Initialize SSE hub for real-time events
+	sseHub := InitSSEHub()
+	sseHandler := NewSSEHandler(sseHub)
 
 	// Start embedded PostgreSQL for Postgres simulator
 	var embeddedPG *embeddedpostgres.EmbeddedPostgres
@@ -152,15 +183,44 @@ func main() {
 		mux.Handle("/postgres/", http.StripPrefix("/postgres", pgHandler))
 	}
 
+	// Register SSE endpoint for real-time events
+	mux.Handle("/events/", sseHandler)
+
+	// Define available simulators
+	availableSimulators := []Simulator{
+		{ID: "slack", Name: "Slack", Description: "Slack API simulator", Enabled: true},
+		{ID: "gmail", Name: "Gmail", Description: "Gmail API simulator", Enabled: true},
+		{ID: "gdocs", Name: "Google Docs", Description: "Google Docs API simulator", Enabled: true},
+		{ID: "gsheets", Name: "Google Sheets", Description: "Google Sheets API simulator", Enabled: true},
+		{ID: "datadog", Name: "Datadog", Description: "Datadog API simulator", Enabled: true},
+		{ID: "resend", Name: "Resend", Description: "Resend Email API simulator", Enabled: true},
+		{ID: "linear", Name: "Linear", Description: "Linear API simulator", Enabled: true},
+		{ID: "github", Name: "GitHub", Description: "GitHub API simulator", Enabled: true},
+		{ID: "outlook", Name: "Outlook", Description: "Outlook API simulator", Enabled: true},
+		{ID: "pagerduty", Name: "PagerDuty", Description: "PagerDuty API simulator", Enabled: true},
+		{ID: "hubspot", Name: "HubSpot", Description: "HubSpot API simulator", Enabled: true},
+		{ID: "jira", Name: "Jira", Description: "Jira API simulator", Enabled: true},
+		{ID: "whatsapp", Name: "WhatsApp", Description: "WhatsApp API simulator", Enabled: true},
+		{ID: "postgres", Name: "PostgreSQL", Description: "PostgreSQL simulator", Enabled: postgresHandler != nil},
+	}
+
+	// Register UI and API routes
+	uiHandler := NewUIHandler(queries, uiFiles, availableSimulators)
+	mux.Handle("/ui", uiHandler)
+	mux.Handle("/api/sessions", uiHandler)
+	mux.Handle("/api/simulators", uiHandler)
+	mux.Handle("/api/simulators/", uiHandler)
+
+	log.Println("UI available at: http://localhost:9000/ui")
 	if postgresHandler != nil {
 		log.Println("  - Postgres: http://localhost:9000/postgres (DB: localhost:5433)")
 	}
 	log.Println("Logging to: simulator.log")
 
-	// Create server with timeouts
+	// Create server with timeouts and CORS middleware
 	server := &http.Server{
 		Addr:         ":9000",
-		Handler:      mux,
+		Handler:      corsMiddleware(mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

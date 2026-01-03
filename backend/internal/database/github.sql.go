@@ -887,6 +887,59 @@ func (q *Queries) ListGithubIssues(ctx context.Context, arg ListGithubIssuesPara
 	return items, nil
 }
 
+const listGithubIssuesBySession = `-- name: ListGithubIssuesBySession :many
+SELECT id, repo_owner, repo_name, number, title, body, state, created_at, updated_at
+FROM github_issues
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListGithubIssuesBySessionRow struct {
+	ID        int64          `json:"id"`
+	RepoOwner string         `json:"repo_owner"`
+	RepoName  string         `json:"repo_name"`
+	Number    int64          `json:"number"`
+	Title     string         `json:"title"`
+	Body      sql.NullString `json:"body"`
+	State     string         `json:"state"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+// UI data queries
+func (q *Queries) ListGithubIssuesBySession(ctx context.Context, sessionID string) ([]ListGithubIssuesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGithubIssuesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGithubIssuesBySessionRow{}
+	for rows.Next() {
+		var i ListGithubIssuesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RepoOwner,
+			&i.RepoName,
+			&i.Number,
+			&i.Title,
+			&i.Body,
+			&i.State,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGithubPullRequests = `-- name: ListGithubPullRequests :many
 SELECT id, repo_owner, repo_name, number, title, body, head, base, state, merged, created_at, updated_at
 FROM github_pull_requests

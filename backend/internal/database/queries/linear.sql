@@ -84,3 +84,10 @@ DELETE FROM linear_issues WHERE session_id = ?;
 DELETE FROM linear_states WHERE session_id = ?;
 DELETE FROM linear_users WHERE session_id = ?;
 DELETE FROM linear_teams WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListLinearIssuesBySession :many
+SELECT id, team_id, title, description, assignee_id, state_id, url, created_at, updated_at, archived_at
+FROM linear_issues
+WHERE session_id = ?
+ORDER BY created_at DESC;

@@ -74,3 +74,10 @@ DELETE FROM jira_projects WHERE session_id = ?;
 DELETE FROM jira_issues WHERE session_id = ?;
 DELETE FROM jira_comments WHERE session_id = ?;
 DELETE FROM jira_transitions WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListJiraIssuesBySession :many
+SELECT id, key, project_key, issue_type, summary, description, assignee, status, created_at, updated_at
+FROM jira_issues
+WHERE session_id = ?
+ORDER BY created_at DESC;

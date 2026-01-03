@@ -341,6 +341,61 @@ func (q *Queries) ListLinearIssues(ctx context.Context, sessionID string) ([]Lis
 	return items, nil
 }
 
+const listLinearIssuesBySession = `-- name: ListLinearIssuesBySession :many
+SELECT id, team_id, title, description, assignee_id, state_id, url, created_at, updated_at, archived_at
+FROM linear_issues
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListLinearIssuesBySessionRow struct {
+	ID          string         `json:"id"`
+	TeamID      string         `json:"team_id"`
+	Title       string         `json:"title"`
+	Description sql.NullString `json:"description"`
+	AssigneeID  sql.NullString `json:"assignee_id"`
+	StateID     sql.NullString `json:"state_id"`
+	Url         string         `json:"url"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+	ArchivedAt  sql.NullInt64  `json:"archived_at"`
+}
+
+// UI data queries
+func (q *Queries) ListLinearIssuesBySession(ctx context.Context, sessionID string) ([]ListLinearIssuesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLinearIssuesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLinearIssuesBySessionRow{}
+	for rows.Next() {
+		var i ListLinearIssuesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Title,
+			&i.Description,
+			&i.AssigneeID,
+			&i.StateID,
+			&i.Url,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ArchivedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLinearIssuesByTeam = `-- name: ListLinearIssuesByTeam :many
 SELECT id, team_id, title, description, assignee_id, state_id, url, created_at, updated_at, archived_at
 FROM linear_issues

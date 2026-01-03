@@ -360,6 +360,53 @@ func (q *Queries) ListPostgresDatabases(ctx context.Context, sessionID string) (
 	return items, nil
 }
 
+const listPostgresQueriesBySession = `-- name: ListPostgresQueriesBySession :many
+SELECT id, database_name, query_text, query_type, rows_affected, executed_at
+FROM postgres_query_log
+WHERE session_id = ?
+ORDER BY executed_at DESC
+`
+
+type ListPostgresQueriesBySessionRow struct {
+	ID           int64         `json:"id"`
+	DatabaseName string        `json:"database_name"`
+	QueryText    string        `json:"query_text"`
+	QueryType    string        `json:"query_type"`
+	RowsAffected sql.NullInt64 `json:"rows_affected"`
+	ExecutedAt   int64         `json:"executed_at"`
+}
+
+// UI data queries
+func (q *Queries) ListPostgresQueriesBySession(ctx context.Context, sessionID string) ([]ListPostgresQueriesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPostgresQueriesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPostgresQueriesBySessionRow{}
+	for rows.Next() {
+		var i ListPostgresQueriesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DatabaseName,
+			&i.QueryText,
+			&i.QueryType,
+			&i.RowsAffected,
+			&i.ExecutedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPostgresQueryLog = `-- name: ListPostgresQueryLog :many
 SELECT id, database_name, query_text, query_type, rows_affected, executed_at
 FROM postgres_query_log

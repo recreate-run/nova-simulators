@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Simulators - Data Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        select, button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        select {
+            min-width: 200px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .tabs {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            overflow-x: auto;
+            background: #fafafa;
+        }
+
+        .tab-button {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .tab-button.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 2rem;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .data-section {
+            margin-bottom: 2rem;
+        }
+
+        .data-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .data-table th {
+            background: #34495e;
+            color: white;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #ecf0f1;
+            font-size: 0.875rem;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .json-viewer {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .badge-info {
+            background: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Nova Simulators - Data Viewer</h1>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="sessionSelect">Session</label>
+                <select id="sessionSelect">
+                    <option value="">Select a session...</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="refreshBtn">Refresh Data</button>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div class="tabs">
+            <div class="tab-buttons" id="tabButtons"></div>
+            <div id="tabContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const simulators = [
+            'slack', 'gmail', 'gdocs', 'gsheets', 'datadog', 'resend',
+            'linear', 'github', 'outlook', 'pagerduty', 'hubspot', 'jira',
+            'whatsapp', 'postgres'
+        ];
+
+        let currentSession = '';
+        let currentTab = 'slack';
+
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const sessions = await response.json();
+
+                const select = document.getElementById('sessionSelect');
+                select.innerHTML = '<option value="">Select a session...</option>';
+
+                sessions.forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session.id;
+                    option.textContent = `${session.id} (created: ${new Date(session.created_at).toLocaleString()})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showError('Failed to load sessions: ' + error.message);
+            }
+        }
+
+        async function loadSimulatorData(simulator, sessionID) {
+            try {
+                const response = await fetch(`/api/simulators/${simulator}/sessions/${sessionID}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error(`Failed to load ${simulator} data:`, error);
+                return null;
+            }
+        }
+
+        function renderTable(title, data, columns) {
+            if (!data || data.length === 0) {
+                return `<div class="empty-state">No ${title.toLowerCase()} found</div>`;
+            }
+
+            let html = `<div class="data-section"><h3>${title}</h3><table class="data-table"><thead><tr>`;
+
+            columns.forEach(col => {
+                html += `<th>${col.label}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            data.forEach(item => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    const value = col.format ? col.format(item[col.key]) : item[col.key];
+                    html += `<td>${value || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function formatTimestamp(ts) {
+            if (!ts) return '-';
+            const date = new Date(parseFloat(ts) * 1000);
+            return date.toLocaleString();
+        }
+
+        function truncate(str, length = 50) {
+            if (!str) return '-';
+            return str.length > length ? str.substring(0, length) + '...' : str;
+        }
+
+        function renderSlackData(data) {
+            let html = '';
+
+            html += renderTable('Channels', data.channels, [
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Name' },
+                { key: 'created_at', label: 'Created', format: (v) => new Date(v * 1000).toLocaleString() }
+            ]);
+
+            html += renderTable('Messages', data.messages, [
+                { key: 'channel_id', label: 'Channel' },
+                { key: 'user_id', label: 'User' },
+                { key: 'text', label: 'Text', format: (v) => truncate(v, 100) },
+                { key: 'timestamp', label: 'Timestamp', format: formatTimestamp }
+            ]);
+
+            html += renderTable('Users', data.users, [
+                { key: 'id', label: 'ID' },
+                { key: 'name', label: 'Username' },
+                { key: 'real_name', label: 'Real Name' },
+                { key: 'email', label: 'Email' }
+            ]);
+
+            html += renderTable('Files', data.files, [
+                { key: 'id', label: 'ID' },
+                { key: 'filename', label: 'Filename' },
+                { key: 'title', label: 'Title' },
+                { key: 'size', label: 'Size' }
+            ]);
+
+            return html;
+        }
+
+        function renderGmailData(data) {
+            let html = '';
+
+            html += renderTable('Messages', data.messages, [
+                { key: 'id', label: 'ID' },
+                { key: 'thread_id', label: 'Thread' },
+                { key: 'from_email', label: 'From', format: truncate },
+                { key: 'to_email', label: 'To', format: truncate },
+                { key: 'subject', label: 'Subject', format: (v) => truncate(v, 60) },
+                { key: 'snippet', label: 'Snippet', format: (v) => truncate(v, 50) }
+            ]);
+
+            return html;
+        }
+
+        function renderGenericData(simulator, data) {
+            if (!data || Object.keys(data).length === 0) {
+                return '<div class="empty-state">No data available</div>';
+            }
+
+            let html = '';
+            for (const [key, value] of Object.entries(data)) {
+                if (Array.isArray(value) && value.length > 0) {
+                    const columns = Object.keys(value[0]).map(k => ({
+                        key: k,
+                        label: k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        format: k.includes('_at') || k === 'created' || k === 'updated' ?
+                            (v) => v ? new Date(v * 1000).toLocaleString() : '-' :
+                            k.includes('id') || k.includes('email') ? truncate : null
+                    }));
+
+                    html += renderTable(
+                        key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        value,
+                        columns
+                    );
+                }
+            }
+
+            if (!html) {
+                html = `<div class="data-section"><h3>Raw Data</h3><pre class="json-viewer">${JSON.stringify(data, null, 2)}</pre></div>`;
+            }
+
+            return html;
+        }
+
+        async function renderTab(simulator) {
+            const contentDiv = document.querySelector(`#tab-${simulator}`);
+            if (!currentSession) {
+                contentDiv.innerHTML = '<div class="empty-state">Please select a session</div>';
+                return;
+            }
+
+            contentDiv.innerHTML = '<div class="loading">Loading...</div>';
+
+            const data = await loadSimulatorData(simulator, currentSession);
+
+            if (!data) {
+                contentDiv.innerHTML = '<div class="empty-state">Failed to load data</div>';
+                return;
+            }
+
+            let html = '';
+
+            if (simulator === 'slack') {
+                html = renderSlackData(data);
+            } else if (simulator === 'gmail') {
+                html = renderGmailData(data);
+            } else {
+                html = renderGenericData(simulator, data);
+            }
+
+            contentDiv.innerHTML = html;
+        }
+
+        function initTabs() {
+            const tabButtonsDiv = document.getElementById('tabButtons');
+            const tabContentDiv = document.getElementById('tabContent');
+
+            simulators.forEach(sim => {
+                const button = document.createElement('button');
+                button.className = 'tab-button';
+                button.textContent = sim.charAt(0).toUpperCase() + sim.slice(1);
+                button.onclick = () => switchTab(sim);
+                tabButtonsDiv.appendChild(button);
+
+                const content = document.createElement('div');
+                content.id = `tab-${sim}`;
+                content.className = 'tab-content';
+                tabContentDiv.appendChild(content);
+            });
+
+            switchTab('slack');
+        }
+
+        function switchTab(simulator) {
+            currentTab = simulator;
+
+            document.querySelectorAll('.tab-button').forEach((btn, idx) => {
+                btn.classList.toggle('active', simulators[idx] === simulator);
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            const activeContent = document.getElementById(`tab-${simulator}`);
+            activeContent.classList.add('active');
+
+            renderTab(simulator);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorContainer');
+            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                errorDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        document.getElementById('sessionSelect').addEventListener('change', (e) => {
+            currentSession = e.target.value;
+            if (currentSession) {
+                renderTab(currentTab);
+            }
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            if (currentSession) {
+                renderTab(currentTab);
+            } else {
+                loadSessions();
+            }
+        });
+
+        // Initialize
+        loadSessions();
+        initTabs();
+    </script>
+</body>
+</html>

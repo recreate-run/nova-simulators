@@ -70,7 +70,7 @@ func TestDatadogInitialStateSeed(t *testing.T) {
 
 	// Verify: Check that events are queryable
 	t.Run("VerifyEvents", func(t *testing.T) {
-		verifyEvents(t, ctx, apiClient, events)
+		verifyEvents(t, events)
 	})
 
 	// Verify: Check that metrics are queryable
@@ -235,16 +235,18 @@ func verifyIncidents(t *testing.T, ctx context.Context, apiClient *datadog.APICl
 	incidentsAPI := datadogV2.NewIncidentsApi(apiClient)
 
 	// List incidents
-	resp, _, err := incidentsAPI.ListIncidents(ctx, *datadogV2.NewListIncidentsOptionalParameters())
+	resp, httpResp, err := incidentsAPI.ListIncidents(ctx, *datadogV2.NewListIncidentsOptionalParameters())
 	require.NoError(t, err, "List incidents should succeed")
+	defer httpResp.Body.Close()
 	assert.Len(t, resp.Data, len(incidents), "Should have correct number of incidents")
 
 	// Verify each incident can be retrieved
 	for _, incident := range incidents {
-		incidentResp, _, err := incidentsAPI.GetIncident(ctx, incident.ID)
+		incidentResp, incidentHTTPResp, err := incidentsAPI.GetIncident(ctx, incident.ID)
 		require.NoError(t, err, "Get incident should succeed for: %s", incident.ID)
 		assert.Equal(t, incident.ID, incidentResp.Data.Id, "Incident ID should match")
 		assert.Equal(t, incident.Title, incidentResp.Data.Attributes.Title, "Incident title should match")
+		_ = incidentHTTPResp.Body.Close()
 	}
 }
 
@@ -261,15 +263,16 @@ func verifyMonitors(t *testing.T, ctx context.Context, apiClient *datadog.APICli
 	monitorsAPI := datadogV1.NewMonitorsApi(apiClient)
 
 	// List monitors
-	monitorsList, _, err := monitorsAPI.ListMonitors(ctx, *datadogV1.NewListMonitorsOptionalParameters())
+	monitorsList, monitorsHTTPResp, err := monitorsAPI.ListMonitors(ctx, *datadogV1.NewListMonitorsOptionalParameters())
 	require.NoError(t, err, "List monitors should succeed")
+	defer monitorsHTTPResp.Body.Close()
 	assert.GreaterOrEqual(t, len(monitorsList), len(monitors), "Should have at least the expected number of monitors")
 
 	// Verify monitor names
 	monitorNames := make(map[string]bool)
-	for _, monitor := range monitorsList {
-		if monitor.Name != nil {
-			monitorNames[*monitor.Name] = true
+	for i := range monitorsList {
+		if monitorsList[i].Name != nil {
+			monitorNames[*monitorsList[i].Name] = true
 		}
 	}
 
@@ -279,7 +282,7 @@ func verifyMonitors(t *testing.T, ctx context.Context, apiClient *datadog.APICli
 }
 
 // verifyEvents verifies that events can be queried via database (events don't have a Get endpoint)
-func verifyEvents(t *testing.T, ctx context.Context, apiClient *datadog.APIClient, events []struct {
+func verifyEvents(t *testing.T, events []struct {
 	ID    int64
 	Title string
 	Text  string

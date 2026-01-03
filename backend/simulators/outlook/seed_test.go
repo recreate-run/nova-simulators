@@ -56,7 +56,7 @@ func TestOutlookInitialStateSeed(t *testing.T) {
 
 	// Verify: Check that messages are queryable
 	t.Run("VerifyMessages", func(t *testing.T) {
-		verifyMessages(t, server.URL, sessionID, messages)
+		verifyMessages(t, server.URL, sessionID)
 	})
 
 	// Verify: Check that individual messages can be retrieved
@@ -147,15 +147,7 @@ func seedOutlookTestData(t *testing.T, ctx context.Context, queries *database.Qu
 }
 
 // verifyMessages verifies that messages can be listed
-func verifyMessages(t *testing.T, serverURL, sessionID string, messages []struct {
-	ID          string
-	FromEmail   string
-	ToEmail     string
-	Subject     string
-	BodyContent string
-	BodyType    string
-	IsRead      bool
-}) {
+func verifyMessages(t *testing.T, serverURL, sessionID string) {
 	t.Helper()
 
 	// List messages
@@ -199,28 +191,28 @@ func verifyIndividualMessages(t *testing.T, serverURL, sessionID string, message
 	t.Helper()
 
 	// Get each message and verify content
-	for _, msg := range messages {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, serverURL+"/v1.0/me/messages/"+msg.ID, http.NoBody)
+	for i := range messages {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, serverURL+"/v1.0/me/messages/"+messages[i].ID, http.NoBody)
 		require.NoError(t, err)
 		req.Header.Set("X-Session-ID", sessionID)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
-		defer resp.Body.Close()
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Get message should succeed")
 
 		var retrieved Message
 		err = json.NewDecoder(resp.Body).Decode(&retrieved)
+		_ = resp.Body.Close()
 		require.NoError(t, err)
 
-		assert.Equal(t, msg.ID, retrieved.ID, "Message ID should match")
-		assert.Equal(t, msg.Subject, retrieved.Subject, "Subject should match")
-		assert.Equal(t, msg.FromEmail, retrieved.From.EmailAddress.Address, "From email should match")
-		assert.Equal(t, msg.ToEmail, retrieved.ToRecipients[0].EmailAddress.Address, "To email should match")
-		assert.Equal(t, msg.BodyContent, retrieved.Body.Content, "Body content should match")
-		assert.Equal(t, msg.BodyType, retrieved.Body.ContentType, "Body type should match")
-		assert.Equal(t, msg.IsRead, retrieved.IsRead, "IsRead status should match")
+		assert.Equal(t, messages[i].ID, retrieved.ID, "Message ID should match")
+		assert.Equal(t, messages[i].Subject, retrieved.Subject, "Subject should match")
+		assert.Equal(t, messages[i].FromEmail, retrieved.From.EmailAddress.Address, "From email should match")
+		assert.Equal(t, messages[i].ToEmail, retrieved.ToRecipients[0].EmailAddress.Address, "To email should match")
+		assert.Equal(t, messages[i].BodyContent, retrieved.Body.Content, "Body content should match")
+		assert.Equal(t, messages[i].BodyType, retrieved.Body.ContentType, "Body type should match")
+		assert.Equal(t, messages[i].IsRead, retrieved.IsRead, "IsRead status should match")
 	}
 }
 

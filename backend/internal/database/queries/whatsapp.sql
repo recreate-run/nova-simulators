@@ -16,3 +16,10 @@ LIMIT ?;
 
 -- name: DeleteWhatsAppSessionData :exec
 DELETE FROM whatsapp_messages WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListWhatsappMessagesBySession :many
+SELECT id, phone_number_id, to_number, message_type, text_body, media_url, caption, template_name, language_code, created_at
+FROM whatsapp_messages
+WHERE session_id = ?
+ORDER BY created_at DESC;

@@ -205,20 +205,20 @@ func seedLinearTestData(t *testing.T, ctx context.Context, queries *database.Que
 	}
 
 	now := time.Now().Unix()
-	for _, issue := range issues {
+	for i := range issues {
 		_, err := queries.CreateLinearIssue(ctx, database.CreateLinearIssueParams{
-			ID:          issue.ID,
-			TeamID:      issue.TeamID,
-			Title:       issue.Title,
-			Description: sql.NullString{String: issue.Description, Valid: true},
-			AssigneeID:  issue.AssigneeID,
-			StateID:     issue.StateID,
-			Url:         issue.URL,
+			ID:          issues[i].ID,
+			TeamID:      issues[i].TeamID,
+			Title:       issues[i].Title,
+			Description: sql.NullString{String: issues[i].Description, Valid: true},
+			AssigneeID:  issues[i].AssigneeID,
+			StateID:     issues[i].StateID,
+			Url:         issues[i].URL,
 			SessionID:   sessionID,
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		})
-		require.NoError(t, err, "Failed to create issue: %s", issue.Title)
+		require.NoError(t, err, "Failed to create issue: %s", issues[i].Title)
 	}
 
 	return teams, users, states, issues
@@ -356,11 +356,11 @@ func verifyIssues(t *testing.T, ctx context.Context, client *graphql.Client, tea
 
 	// Verify issue titles
 	issueTitles := make(map[string]bool)
-	for _, issue := range response.Team.Issues.Nodes {
-		issueTitles[issue.Title] = true
+	for i := range response.Team.Issues.Nodes {
+		issueTitles[response.Team.Issues.Nodes[i].Title] = true
 	}
-	for _, issue := range issues {
-		assert.True(t, issueTitles[issue.Title], "Should have issue: %s", issue.Title)
+	for i := range issues {
+		assert.True(t, issueTitles[issues[i].Title], "Should have issue: %s", issues[i].Title)
 	}
 }
 
@@ -425,14 +425,14 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	assert.Len(t, dbIssues, len(issues), "Should have correct number of issues in database")
 
 	// Verify issue titles
-	for _, dbIssue := range dbIssues {
+	for i := range dbIssues {
 		found := false
-		for _, issue := range issues {
-			if dbIssue.Title == issue.Title {
+		for j := range issues {
+			if dbIssues[i].Title == issues[j].Title {
 				found = true
 				break
 			}
 		}
-		assert.True(t, found, "Issue title should match: %s", dbIssue.Title)
+		assert.True(t, found, "Issue title should match: %s", dbIssues[i].Title)
 	}
 }

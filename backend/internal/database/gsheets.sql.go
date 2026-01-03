@@ -311,6 +311,43 @@ func (q *Queries) GetSpreadsheet(ctx context.Context, arg GetSpreadsheetParams) 
 	return i, err
 }
 
+const listGsheetsBySession = `-- name: ListGsheetsBySession :many
+SELECT id, title, created_at
+FROM gsheets_spreadsheets
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListGsheetsBySessionRow struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListGsheetsBySession(ctx context.Context, sessionID string) ([]ListGsheetsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGsheetsBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGsheetsBySessionRow{}
+	for rows.Next() {
+		var i ListGsheetsBySessionRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setCellValue = `-- name: SetCellValue :exec
 INSERT INTO gsheets_cells (spreadsheet_id, sheet_title, row, col, value, session_id, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, unixepoch())

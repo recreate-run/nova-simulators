@@ -1,6 +1,7 @@
 package session_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +30,9 @@ func TestSessionManagerCreateWithDirectory(t *testing.T) {
 
 	t.Run("Creating session creates working directory", func(t *testing.T) {
 		// Send POST request to create session
-		resp, err := http.Post(server.URL+"/sessions", "application/json", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+"/sessions", http.NoBody)
+		require.NoError(t, err, "Failed to create POST request")
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err, "Failed to send POST request")
 		defer resp.Body.Close()
 
@@ -68,7 +71,9 @@ func TestSessionManagerDeleteWithDirectory(t *testing.T) {
 
 	t.Run("Deleting session removes working directory", func(t *testing.T) {
 		// Create session first
-		resp, err := http.Post(server.URL+"/sessions", "application/json", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+"/sessions", http.NoBody)
+		require.NoError(t, err, "Failed to create POST request")
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err, "Failed to create session")
 		defer resp.Body.Close()
 
@@ -85,7 +90,7 @@ func TestSessionManagerDeleteWithDirectory(t *testing.T) {
 		require.NoError(t, err, "Working directory should exist after creation")
 
 		// Delete session
-		req, err := http.NewRequest(http.MethodDelete, server.URL+"/sessions/"+sessionID, nil)
+		req, err = http.NewRequestWithContext(context.Background(), http.MethodDelete, server.URL+"/sessions/"+sessionID, http.NoBody)
 		require.NoError(t, err, "Failed to create DELETE request")
 
 		deleteResp, err := http.DefaultClient.Do(req)
@@ -122,7 +127,9 @@ func TestSessionManagerMultipleSessions(t *testing.T) {
 
 	t.Run("Multiple sessions have isolated directories", func(t *testing.T) {
 		// Create first session
-		resp1, err := http.Post(server.URL+"/sessions", "application/json", nil)
+		req1, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+"/sessions", http.NoBody)
+		require.NoError(t, err, "Failed to create POST request 1")
+		resp1, err := http.DefaultClient.Do(req1)
 		require.NoError(t, err, "Failed to create session 1")
 		defer resp1.Body.Close()
 
@@ -132,7 +139,9 @@ func TestSessionManagerMultipleSessions(t *testing.T) {
 		sessionID1 := result1["session_id"]
 
 		// Create second session
-		resp2, err := http.Post(server.URL+"/sessions", "application/json", nil)
+		req2, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+"/sessions", http.NoBody)
+		require.NoError(t, err, "Failed to create POST request 2")
+		resp2, err := http.DefaultClient.Do(req2)
 		require.NoError(t, err, "Failed to create session 2")
 		defer resp2.Body.Close()
 
@@ -157,7 +166,7 @@ func TestSessionManagerMultipleSessions(t *testing.T) {
 		assert.NotEqual(t, sessionID1, sessionID2, "Session IDs should be different")
 
 		// Delete first session
-		req, err := http.NewRequest(http.MethodDelete, server.URL+"/sessions/"+sessionID1, nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, server.URL+"/sessions/"+sessionID1, http.NoBody)
 		require.NoError(t, err, "Failed to create DELETE request")
 
 		deleteResp, err := http.DefaultClient.Do(req)
@@ -189,7 +198,9 @@ func TestSessionManagerDirectoryWithFiles(t *testing.T) {
 
 	t.Run("Deleting session removes directory with files", func(t *testing.T) {
 		// Create session
-		resp, err := http.Post(server.URL+"/sessions", "application/json", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+"/sessions", http.NoBody)
+		require.NoError(t, err, "Failed to create POST request")
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err, "Failed to create session")
 		defer resp.Body.Close()
 
@@ -203,7 +214,7 @@ func TestSessionManagerDirectoryWithFiles(t *testing.T) {
 
 		// Write a test file
 		testFile := filepath.Join(sessionPath, "seed_data.sql")
-		err = os.WriteFile(testFile, []byte("INSERT INTO test VALUES (1);"), 0644)
+		err = os.WriteFile(testFile, []byte("INSERT INTO test VALUES (1);"), 0o600)
 		require.NoError(t, err, "Failed to write test file")
 
 		// Verify file exists
@@ -211,7 +222,7 @@ func TestSessionManagerDirectoryWithFiles(t *testing.T) {
 		require.NoError(t, err, "Test file should exist")
 
 		// Delete session
-		req, err := http.NewRequest(http.MethodDelete, server.URL+"/sessions/"+sessionID, nil)
+		req, err = http.NewRequestWithContext(context.Background(), http.MethodDelete, server.URL+"/sessions/"+sessionID, http.NoBody)
 		require.NoError(t, err, "Failed to create DELETE request")
 
 		deleteResp, err := http.DefaultClient.Do(req)

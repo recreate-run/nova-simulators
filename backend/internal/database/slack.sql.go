@@ -395,6 +395,208 @@ func (q *Queries) ListChannels(ctx context.Context, sessionID string) ([]ListCha
 	return items, nil
 }
 
+const listFilesBySession = `-- name: ListFilesBySession :many
+SELECT id, filename, title, filetype, size, upload_url, channel_id, user_id, created_at
+FROM slack_files
+WHERE session_id = ?
+`
+
+type ListFilesBySessionRow struct {
+	ID        string         `json:"id"`
+	Filename  string         `json:"filename"`
+	Title     sql.NullString `json:"title"`
+	Filetype  sql.NullString `json:"filetype"`
+	Size      int64          `json:"size"`
+	UploadUrl sql.NullString `json:"upload_url"`
+	ChannelID sql.NullString `json:"channel_id"`
+	UserID    string         `json:"user_id"`
+	CreatedAt int64          `json:"created_at"`
+}
+
+func (q *Queries) ListFilesBySession(ctx context.Context, sessionID string) ([]ListFilesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFilesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFilesBySessionRow{}
+	for rows.Next() {
+		var i ListFilesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Filename,
+			&i.Title,
+			&i.Filetype,
+			&i.Size,
+			&i.UploadUrl,
+			&i.ChannelID,
+			&i.UserID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMessagesBySession = `-- name: ListMessagesBySession :many
+SELECT channel_id, type, user_id, text, timestamp, attachments
+FROM slack_messages
+WHERE session_id = ?
+ORDER BY timestamp DESC
+`
+
+type ListMessagesBySessionRow struct {
+	ChannelID   string         `json:"channel_id"`
+	Type        string         `json:"type"`
+	UserID      string         `json:"user_id"`
+	Text        string         `json:"text"`
+	Timestamp   string         `json:"timestamp"`
+	Attachments sql.NullString `json:"attachments"`
+}
+
+// UI data queries
+func (q *Queries) ListMessagesBySession(ctx context.Context, sessionID string) ([]ListMessagesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMessagesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMessagesBySessionRow{}
+	for rows.Next() {
+		var i ListMessagesBySessionRow
+		if err := rows.Scan(
+			&i.ChannelID,
+			&i.Type,
+			&i.UserID,
+			&i.Text,
+			&i.Timestamp,
+			&i.Attachments,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessions = `-- name: ListSessions :many
+SELECT id, created_at, last_accessed FROM sessions ORDER BY created_at DESC
+`
+
+func (q *Queries) ListSessions(ctx context.Context) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, listSessions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Session{}
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(&i.ID, &i.CreatedAt, &i.LastAccessed); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersBySession = `-- name: ListUsersBySession :many
+SELECT id, team_id, name, real_name, email, display_name, first_name, last_name,
+       is_admin, is_owner, is_bot, timezone, timezone_label, timezone_offset,
+       image_24, image_32, image_48, image_72, image_192, image_512, created_at
+FROM slack_users
+WHERE session_id = ?
+`
+
+type ListUsersBySessionRow struct {
+	ID             string         `json:"id"`
+	TeamID         string         `json:"team_id"`
+	Name           string         `json:"name"`
+	RealName       string         `json:"real_name"`
+	Email          sql.NullString `json:"email"`
+	DisplayName    sql.NullString `json:"display_name"`
+	FirstName      sql.NullString `json:"first_name"`
+	LastName       sql.NullString `json:"last_name"`
+	IsAdmin        int64          `json:"is_admin"`
+	IsOwner        int64          `json:"is_owner"`
+	IsBot          int64          `json:"is_bot"`
+	Timezone       sql.NullString `json:"timezone"`
+	TimezoneLabel  sql.NullString `json:"timezone_label"`
+	TimezoneOffset sql.NullInt64  `json:"timezone_offset"`
+	Image24        sql.NullString `json:"image_24"`
+	Image32        sql.NullString `json:"image_32"`
+	Image48        sql.NullString `json:"image_48"`
+	Image72        sql.NullString `json:"image_72"`
+	Image192       sql.NullString `json:"image_192"`
+	Image512       sql.NullString `json:"image_512"`
+	CreatedAt      int64          `json:"created_at"`
+}
+
+func (q *Queries) ListUsersBySession(ctx context.Context, sessionID string) ([]ListUsersBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUsersBySessionRow{}
+	for rows.Next() {
+		var i ListUsersBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Name,
+			&i.RealName,
+			&i.Email,
+			&i.DisplayName,
+			&i.FirstName,
+			&i.LastName,
+			&i.IsAdmin,
+			&i.IsOwner,
+			&i.IsBot,
+			&i.Timezone,
+			&i.TimezoneLabel,
+			&i.TimezoneOffset,
+			&i.Image24,
+			&i.Image32,
+			&i.Image48,
+			&i.Image72,
+			&i.Image192,
+			&i.Image512,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSessionAccess = `-- name: UpdateSessionAccess :exec
 UPDATE sessions SET last_accessed = unixepoch() WHERE id = ?
 `

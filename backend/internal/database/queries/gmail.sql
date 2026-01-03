@@ -28,3 +28,10 @@ LIMIT ?;
 
 -- name: DeleteGmailSessionData :exec
 DELETE FROM gmail_messages WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListGmailMessagesBySession :many
+SELECT id, thread_id, from_email, to_email, subject, body_plain, body_html, snippet, label_ids, internal_date, size_estimate, created_at
+FROM gmail_messages
+WHERE session_id = ?
+ORDER BY internal_date DESC;

@@ -16,3 +16,10 @@ LIMIT ?;
 
 -- name: DeleteResendSessionData :exec
 DELETE FROM resend_emails WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListResendEmailsBySession :many
+SELECT id, from_email, to_emails, subject, html, cc_emails, bcc_emails, reply_to, created_at
+FROM resend_emails
+WHERE session_id = ?
+ORDER BY created_at DESC;

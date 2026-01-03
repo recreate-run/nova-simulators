@@ -147,6 +147,59 @@ func (q *Queries) ListOutlookMessages(ctx context.Context, arg ListOutlookMessag
 	return items, nil
 }
 
+const listOutlookMessagesBySession = `-- name: ListOutlookMessagesBySession :many
+SELECT id, from_email, to_email, subject, body_content, body_type, is_read, received_datetime, created_at
+FROM outlook_messages
+WHERE session_id = ?
+ORDER BY received_datetime DESC
+`
+
+type ListOutlookMessagesBySessionRow struct {
+	ID               string         `json:"id"`
+	FromEmail        string         `json:"from_email"`
+	ToEmail          string         `json:"to_email"`
+	Subject          string         `json:"subject"`
+	BodyContent      sql.NullString `json:"body_content"`
+	BodyType         string         `json:"body_type"`
+	IsRead           int64          `json:"is_read"`
+	ReceivedDatetime string         `json:"received_datetime"`
+	CreatedAt        int64          `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListOutlookMessagesBySession(ctx context.Context, sessionID string) ([]ListOutlookMessagesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOutlookMessagesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOutlookMessagesBySessionRow{}
+	for rows.Next() {
+		var i ListOutlookMessagesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromEmail,
+			&i.ToEmail,
+			&i.Subject,
+			&i.BodyContent,
+			&i.BodyType,
+			&i.IsRead,
+			&i.ReceivedDatetime,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchOutlookMessages = `-- name: SearchOutlookMessages :many
 SELECT id, from_email, to_email, subject, body_content, body_type, is_read, received_datetime
 FROM outlook_messages

@@ -157,6 +157,65 @@ func (q *Queries) ListGmailMessages(ctx context.Context, arg ListGmailMessagesPa
 	return items, nil
 }
 
+const listGmailMessagesBySession = `-- name: ListGmailMessagesBySession :many
+SELECT id, thread_id, from_email, to_email, subject, body_plain, body_html, snippet, label_ids, internal_date, size_estimate, created_at
+FROM gmail_messages
+WHERE session_id = ?
+ORDER BY internal_date DESC
+`
+
+type ListGmailMessagesBySessionRow struct {
+	ID           string         `json:"id"`
+	ThreadID     string         `json:"thread_id"`
+	FromEmail    string         `json:"from_email"`
+	ToEmail      string         `json:"to_email"`
+	Subject      string         `json:"subject"`
+	BodyPlain    sql.NullString `json:"body_plain"`
+	BodyHtml     sql.NullString `json:"body_html"`
+	Snippet      sql.NullString `json:"snippet"`
+	LabelIds     sql.NullString `json:"label_ids"`
+	InternalDate int64          `json:"internal_date"`
+	SizeEstimate int64          `json:"size_estimate"`
+	CreatedAt    int64          `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListGmailMessagesBySession(ctx context.Context, sessionID string) ([]ListGmailMessagesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGmailMessagesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGmailMessagesBySessionRow{}
+	for rows.Next() {
+		var i ListGmailMessagesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ThreadID,
+			&i.FromEmail,
+			&i.ToEmail,
+			&i.Subject,
+			&i.BodyPlain,
+			&i.BodyHtml,
+			&i.Snippet,
+			&i.LabelIds,
+			&i.InternalDate,
+			&i.SizeEstimate,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchGmailMessages = `-- name: SearchGmailMessages :many
 SELECT id, thread_id, from_email, to_email, subject, snippet, label_ids, internal_date
 FROM gmail_messages

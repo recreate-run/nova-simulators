@@ -80,12 +80,12 @@ func TestPostgresInitialStateSeed(t *testing.T) {
 
 	// Verify: Check database isolation - ensure all data is correctly stored
 	t.Run("VerifyDatabaseIsolation", func(t *testing.T) {
-		verifyDatabaseIsolation(t, ctx, queries, sessionID, databases, tables)
+		verifyDatabaseIsolation(t, ctx, queries, sessionID, databases)
 	})
 }
 
 // seedPostgresTestData creates databases, tables, and rows for testing
-func seedPostgresTestData(t *testing.T, ctx context.Context, queries *database.Queries, handler *simulatorPostgres.Handler, sessionID string) (
+func seedPostgresTestData(t *testing.T, ctx context.Context, queries *database.Queries, _ *simulatorPostgres.Handler, sessionID string) (
 	databases []struct {
 		Name string
 	},
@@ -149,7 +149,8 @@ func seedPostgresTestData(t *testing.T, ctx context.Context, queries *database.Q
 		require.NoError(t, err, "Failed to create table: %s.%s", tbl.DatabaseName, tbl.TableName)
 
 		// Create columns for each table
-		if tbl.TableName == "users" {
+		switch tbl.TableName {
+		case "users":
 			_ = queries.CreatePostgresColumn(ctx, database.CreatePostgresColumnParams{
 				DatabaseName:    tbl.DatabaseName,
 				TableName:       tbl.TableName,
@@ -180,7 +181,7 @@ func seedPostgresTestData(t *testing.T, ctx context.Context, queries *database.Q
 				OrdinalPosition: 3,
 				SessionID:       sessionID,
 			})
-		} else if tbl.TableName == "products" {
+		case "products":
 			_ = queries.CreatePostgresColumn(ctx, database.CreatePostgresColumnParams{
 				DatabaseName:    tbl.DatabaseName,
 				TableName:       tbl.TableName,
@@ -201,7 +202,7 @@ func seedPostgresTestData(t *testing.T, ctx context.Context, queries *database.Q
 				OrdinalPosition: 2,
 				SessionID:       sessionID,
 			})
-		} else if tbl.TableName == "orders" {
+		case "orders":
 			_ = queries.CreatePostgresColumn(ctx, database.CreatePostgresColumnParams{
 				DatabaseName:    tbl.DatabaseName,
 				TableName:       tbl.TableName,
@@ -347,7 +348,7 @@ func verifyRows(t *testing.T, ctx context.Context, queries *database.Queries, se
 	// Verify row counts for each table
 	for key, expectedCount := range rowsByTable {
 		parts := []string{}
-		if len(key) > 0 {
+		if key != "" {
 			idx := 0
 			for i, c := range key {
 				if c == '.' {
@@ -387,10 +388,7 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	databases []struct {
 		Name string
 	},
-	tables []struct {
-		DatabaseName string
-		TableName    string
-	}) {
+) {
 	t.Helper()
 
 	// Query databases from database
@@ -415,5 +413,5 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 
 	otherDBList, err := queries.ListPostgresDatabases(ctx, otherSessionID)
 	require.NoError(t, err, "ListPostgresDatabases should succeed for other session")
-	assert.Len(t, otherDBList, 0, "Other session should have no databases")
+	assert.Empty(t, otherDBList, "Other session should have no databases")
 }

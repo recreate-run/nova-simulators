@@ -154,3 +154,58 @@ func (q *Queries) ListWhatsAppMessages(ctx context.Context, arg ListWhatsAppMess
 	}
 	return items, nil
 }
+
+const listWhatsappMessagesBySession = `-- name: ListWhatsappMessagesBySession :many
+SELECT id, phone_number_id, to_number, message_type, text_body, media_url, caption, template_name, language_code, created_at
+FROM whatsapp_messages
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListWhatsappMessagesBySessionRow struct {
+	ID            string         `json:"id"`
+	PhoneNumberID string         `json:"phone_number_id"`
+	ToNumber      string         `json:"to_number"`
+	MessageType   string         `json:"message_type"`
+	TextBody      sql.NullString `json:"text_body"`
+	MediaUrl      sql.NullString `json:"media_url"`
+	Caption       sql.NullString `json:"caption"`
+	TemplateName  sql.NullString `json:"template_name"`
+	LanguageCode  sql.NullString `json:"language_code"`
+	CreatedAt     int64          `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListWhatsappMessagesBySession(ctx context.Context, sessionID string) ([]ListWhatsappMessagesBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listWhatsappMessagesBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWhatsappMessagesBySessionRow{}
+	for rows.Next() {
+		var i ListWhatsappMessagesBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PhoneNumberID,
+			&i.ToNumber,
+			&i.MessageType,
+			&i.TextBody,
+			&i.MediaUrl,
+			&i.Caption,
+			&i.TemplateName,
+			&i.LanguageCode,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

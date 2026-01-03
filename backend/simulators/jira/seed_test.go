@@ -83,7 +83,7 @@ func TestJiraInitialStateSeed(t *testing.T) {
 
 	// Verify: Check database isolation - ensure all data is correctly stored
 	t.Run("VerifyDatabaseIsolation", func(t *testing.T) {
-		verifyDatabaseIsolation(t, ctx, queries, sessionID, projects, issues, users)
+		verifyDatabaseIsolation(t, ctx, queries, sessionID, projects, issues)
 	})
 }
 
@@ -178,19 +178,19 @@ func seedJiraTestData(t *testing.T, ctx context.Context, queries *database.Queri
 		},
 	}
 
-	for _, issue := range issues {
+	for i := range issues {
 		err := queries.CreateJiraIssue(ctx, database.CreateJiraIssueParams{
-			ID:          issue.ID,
-			Key:         issue.Key,
-			ProjectKey:  issue.ProjectKey,
-			IssueType:   issue.IssueType,
-			Summary:     issue.Summary,
-			Description: sql.NullString{String: issue.Description, Valid: true},
-			Assignee:    sql.NullString{String: issue.Assignee, Valid: true},
-			Status:      issue.Status,
+			ID:          issues[i].ID,
+			Key:         issues[i].Key,
+			ProjectKey:  issues[i].ProjectKey,
+			IssueType:   issues[i].IssueType,
+			Summary:     issues[i].Summary,
+			Description: sql.NullString{String: issues[i].Description, Valid: true},
+			Assignee:    sql.NullString{String: issues[i].Assignee, Valid: true},
+			Status:      issues[i].Status,
 			SessionID:   sessionID,
 		})
-		require.NoError(t, err, "Failed to create issue: %s", issue.Key)
+		require.NoError(t, err, "Failed to create issue: %s", issues[i].Key)
 	}
 
 	return projects, issues, users
@@ -232,17 +232,17 @@ func verifyIssues(t *testing.T, client *jira.Client, issues []struct {
 	t.Helper()
 
 	// Get each issue and verify content
-	for _, issue := range issues {
-		retrieved, _, err := client.Issue.Get(issue.Key, nil)
-		require.NoError(t, err, "Get should succeed for issue: %s", issue.Key)
-		assert.Equal(t, issue.Key, retrieved.Key, "Issue key should match")
-		assert.Equal(t, issue.Summary, retrieved.Fields.Summary, "Summary should match")
-		assert.Equal(t, issue.Description, retrieved.Fields.Description, "Description should match")
-		assert.Equal(t, issue.Status, retrieved.Fields.Status.Name, "Status should match")
+	for i := range issues {
+		retrieved, _, err := client.Issue.Get(issues[i].Key, nil)
+		require.NoError(t, err, "Get should succeed for issue: %s", issues[i].Key)
+		assert.Equal(t, issues[i].Key, retrieved.Key, "Issue key should match")
+		assert.Equal(t, issues[i].Summary, retrieved.Fields.Summary, "Summary should match")
+		assert.Equal(t, issues[i].Description, retrieved.Fields.Description, "Description should match")
+		assert.Equal(t, issues[i].Status, retrieved.Fields.Status.Name, "Status should match")
 
-		if issue.Assignee != "" {
+		if issues[i].Assignee != "" {
 			require.NotNil(t, retrieved.Fields.Assignee, "Assignee should not be nil")
-			assert.Equal(t, issue.Assignee, retrieved.Fields.Assignee.Name, "Assignee should match")
+			assert.Equal(t, issues[i].Assignee, retrieved.Fields.Assignee.Name, "Assignee should match")
 		}
 	}
 
@@ -269,9 +269,9 @@ func verifyUsers(t *testing.T, client *jira.Client, issues []struct {
 
 	// Collect all assignees from issues
 	assigneeMap := make(map[string]bool)
-	for _, issue := range issues {
-		retrieved, _, err := client.Issue.Get(issue.Key, nil)
-		require.NoError(t, err, "Get should succeed for issue: %s", issue.Key)
+	for i := range issues {
+		retrieved, _, err := client.Issue.Get(issues[i].Key, nil)
+		require.NoError(t, err, "Get should succeed for issue: %s", issues[i].Key)
 
 		if retrieved.Fields.Assignee != nil {
 			assigneeMap[retrieved.Fields.Assignee.Name] = true
@@ -297,7 +297,6 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 		Assignee    string
 		Status      string
 	},
-	users []struct{ Name, Email string },
 ) {
 	t.Helper()
 
@@ -317,21 +316,21 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	}
 
 	// Query issues from database
-	for _, issue := range issues {
+	for i := range issues {
 		dbIssue, err := queries.GetJiraIssueByKey(ctx, database.GetJiraIssueByKeyParams{
-			Key:       issue.Key,
+			Key:       issues[i].Key,
 			SessionID: sessionID,
 		})
-		require.NoError(t, err, "GetJiraIssueByKey should succeed for: %s", issue.Key)
-		assert.Equal(t, issue.Summary, dbIssue.Summary, "Issue summary should match in database")
-		assert.Equal(t, issue.Status, dbIssue.Status, "Issue status should match in database")
+		require.NoError(t, err, "GetJiraIssueByKey should succeed for: %s", issues[i].Key)
+		assert.Equal(t, issues[i].Summary, dbIssue.Summary, "Issue summary should match in database")
+		assert.Equal(t, issues[i].Status, dbIssue.Status, "Issue status should match in database")
 
 		if dbIssue.Description.Valid {
-			assert.Equal(t, issue.Description, dbIssue.Description.String, "Issue description should match in database")
+			assert.Equal(t, issues[i].Description, dbIssue.Description.String, "Issue description should match in database")
 		}
 
 		if dbIssue.Assignee.Valid {
-			assert.Equal(t, issue.Assignee, dbIssue.Assignee.String, "Issue assignee should match in database")
+			assert.Equal(t, issues[i].Assignee, dbIssue.Assignee.String, "Issue assignee should match in database")
 		}
 	}
 

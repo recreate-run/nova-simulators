@@ -60,3 +60,10 @@ WHERE spreadsheet_id = ? AND sheet_title = ? AND session_id = ?;
 
 -- name: DeleteGsheetsSessionData :exec
 DELETE FROM gsheets_spreadsheets WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListGsheetsBySession :many
+SELECT id, title, created_at
+FROM gsheets_spreadsheets
+WHERE session_id = ?
+ORDER BY created_at DESC;

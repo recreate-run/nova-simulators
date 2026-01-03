@@ -104,3 +104,10 @@ DELETE FROM postgres_tables WHERE session_id = ?;
 DELETE FROM postgres_columns WHERE session_id = ?;
 DELETE FROM postgres_rows WHERE session_id = ?;
 DELETE FROM postgres_query_log WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListPostgresQueriesBySession :many
+SELECT id, database_name, query_text, query_type, rows_affected, executed_at
+FROM postgres_query_log
+WHERE session_id = ?
+ORDER BY executed_at DESC;

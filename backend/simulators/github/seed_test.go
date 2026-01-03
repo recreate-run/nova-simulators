@@ -337,7 +337,7 @@ func verifyDatabaseIsolation(t *testing.T, ctx context.Context, queries *databas
 	assert.Len(t, dbPRs, len(prs), "Should have correct number of pull requests in database")
 
 	// Verify PR titles
-	for i, pr := range dbPRs {
-		assert.Equal(t, prs[i].Title, pr.Title, "PR title should match in database")
+	for i := range dbPRs {
+		assert.Equal(t, prs[i].Title, dbPRs[i].Title, "PR title should match in database")
 	}
 }

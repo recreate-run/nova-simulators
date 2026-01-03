@@ -468,6 +468,57 @@ func (q *Queries) ListPagerDutyServices(ctx context.Context, sessionID string) (
 	return items, nil
 }
 
+const listPagerdutyIncidentsBySession = `-- name: ListPagerdutyIncidentsBySession :many
+SELECT id, title, service_id, urgency, status, body_details, created_at, updated_at
+FROM pagerduty_incidents
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListPagerdutyIncidentsBySessionRow struct {
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	ServiceID   string         `json:"service_id"`
+	Urgency     string         `json:"urgency"`
+	Status      string         `json:"status"`
+	BodyDetails sql.NullString `json:"body_details"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+// UI data queries
+func (q *Queries) ListPagerdutyIncidentsBySession(ctx context.Context, sessionID string) ([]ListPagerdutyIncidentsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPagerdutyIncidentsBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPagerdutyIncidentsBySessionRow{}
+	for rows.Next() {
+		var i ListPagerdutyIncidentsBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.ServiceID,
+			&i.Urgency,
+			&i.Status,
+			&i.BodyDetails,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updatePagerDutyIncidentStatus = `-- name: UpdatePagerDutyIncidentStatus :exec
 UPDATE pagerduty_incidents
 SET status = ?,

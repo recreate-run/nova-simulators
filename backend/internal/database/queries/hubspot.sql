@@ -101,3 +101,10 @@ DELETE FROM hubspot_associations WHERE session_id = ?;
 DELETE FROM hubspot_companies WHERE session_id = ?;
 DELETE FROM hubspot_deals WHERE session_id = ?;
 DELETE FROM hubspot_contacts WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListHubspotContactsBySession :many
+SELECT id, email, first_name, last_name, mobile_phone, website, created_at, updated_at
+FROM hubspot_contacts
+WHERE session_id = ?
+ORDER BY created_at DESC;

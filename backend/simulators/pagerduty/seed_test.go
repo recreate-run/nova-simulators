@@ -255,16 +255,16 @@ func verifyServices(t *testing.T, pdClient *pagerduty.Client, services []struct 
 
 	// Create a map for easier lookup
 	serviceMap := make(map[string]pagerduty.Service)
-	for _, s := range response.Services {
-		serviceMap[s.ID] = s
+	for i := range response.Services {
+		serviceMap[response.Services[i].ID] = response.Services[i]
 	}
 
 	// Verify each seeded service
-	for _, s := range services {
-		service, found := serviceMap[s.ID]
-		assert.True(t, found, "Service should be found: %s", s.ID)
+	for i := range services {
+		service, found := serviceMap[services[i].ID]
+		assert.True(t, found, "Service should be found: %s", services[i].ID)
 		if found {
-			assert.Equal(t, s.Name, service.Name, "Service name should match")
+			assert.Equal(t, services[i].Name, service.Name, "Service name should match")
 		}
 	}
 }
@@ -282,16 +282,16 @@ func verifyEscalationPolicies(t *testing.T, pdClient *pagerduty.Client, escalati
 
 	// Create a map for easier lookup
 	policyMap := make(map[string]pagerduty.EscalationPolicy)
-	for _, p := range response.EscalationPolicies {
-		policyMap[p.ID] = p
+	for i := range response.EscalationPolicies {
+		policyMap[response.EscalationPolicies[i].ID] = response.EscalationPolicies[i]
 	}
 
 	// Verify each seeded policy
-	for _, p := range escalationPolicies {
-		policy, found := policyMap[p.ID]
-		assert.True(t, found, "Escalation policy should be found: %s", p.ID)
+	for i := range escalationPolicies {
+		policy, found := policyMap[escalationPolicies[i].ID]
+		assert.True(t, found, "Escalation policy should be found: %s", escalationPolicies[i].ID)
 		if found {
-			assert.Equal(t, p.Name, policy.Name, "Policy name should match")
+			assert.Equal(t, escalationPolicies[i].Name, policy.Name, "Policy name should match")
 		}
 	}
 }
@@ -310,16 +310,16 @@ func verifyUsers(t *testing.T, pdClient *pagerduty.Client, users []struct {
 
 	// Create a map for easier lookup
 	userMap := make(map[string]pagerduty.OnCall)
-	for _, u := range response.OnCalls {
-		userMap[u.User.Email] = u
+	for i := range response.OnCalls {
+		userMap[response.OnCalls[i].User.Email] = response.OnCalls[i]
 	}
 
 	// Verify each seeded user
-	for _, u := range users {
-		oncall, found := userMap[u.Email]
-		assert.True(t, found, "User should be found: %s", u.Email)
+	for i := range users {
+		oncall, found := userMap[users[i].Email]
+		assert.True(t, found, "User should be found: %s", users[i].Email)
 		if found {
-			assert.Equal(t, u.EscalationPolicyID, oncall.EscalationPolicy.ID, "Escalation policy ID should match")
+			assert.Equal(t, users[i].EscalationPolicyID, oncall.EscalationPolicy.ID, "Escalation policy ID should match")
 		}
 	}
 }
@@ -340,19 +340,19 @@ func verifyIncidents(t *testing.T, pdClient *pagerduty.Client, incidents []struc
 
 	// Create a map for easier lookup
 	incidentMap := make(map[string]pagerduty.Incident)
-	for _, i := range response.Incidents {
-		incidentMap[i.ID] = i
+	for i := range response.Incidents {
+		incidentMap[response.Incidents[i].ID] = response.Incidents[i]
 	}
 
 	// Verify each seeded incident
-	for _, i := range incidents {
-		incident, found := incidentMap[i.ID]
-		assert.True(t, found, "Incident should be found: %s", i.ID)
+	for i := range incidents {
+		incident, found := incidentMap[incidents[i].ID]
+		assert.True(t, found, "Incident should be found: %s", incidents[i].ID)
 		if found {
-			assert.Equal(t, i.Title, incident.Title, "Incident title should match")
-			assert.Equal(t, i.ServiceID, incident.Service.ID, "Service ID should match")
-			assert.Equal(t, i.Urgency, incident.Urgency, "Urgency should match")
-			assert.Equal(t, i.Status, incident.Status, "Status should match")
+			assert.Equal(t, incidents[i].Title, incident.Title, "Incident title should match")
+			assert.Equal(t, incidents[i].ServiceID, incident.Service.ID, "Service ID should match")
+			assert.Equal(t, incidents[i].Urgency, incident.Urgency, "Urgency should match")
+			assert.Equal(t, incidents[i].Status, incident.Status, "Status should match")
 		}
 	}
 }

@@ -140,3 +140,56 @@ func (q *Queries) ListResendEmails(ctx context.Context, arg ListResendEmailsPara
 	}
 	return items, nil
 }
+
+const listResendEmailsBySession = `-- name: ListResendEmailsBySession :many
+SELECT id, from_email, to_emails, subject, html, cc_emails, bcc_emails, reply_to, created_at
+FROM resend_emails
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListResendEmailsBySessionRow struct {
+	ID        string         `json:"id"`
+	FromEmail string         `json:"from_email"`
+	ToEmails  string         `json:"to_emails"`
+	Subject   string         `json:"subject"`
+	Html      string         `json:"html"`
+	CcEmails  sql.NullString `json:"cc_emails"`
+	BccEmails sql.NullString `json:"bcc_emails"`
+	ReplyTo   sql.NullString `json:"reply_to"`
+	CreatedAt int64          `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListResendEmailsBySession(ctx context.Context, sessionID string) ([]ListResendEmailsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listResendEmailsBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListResendEmailsBySessionRow{}
+	for rows.Next() {
+		var i ListResendEmailsBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromEmail,
+			&i.ToEmails,
+			&i.Subject,
+			&i.Html,
+			&i.CcEmails,
+			&i.BccEmails,
+			&i.ReplyTo,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

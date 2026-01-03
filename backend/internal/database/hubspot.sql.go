@@ -523,6 +523,57 @@ func (q *Queries) ListHubspotContacts(ctx context.Context, sessionID string) ([]
 	return items, nil
 }
 
+const listHubspotContactsBySession = `-- name: ListHubspotContactsBySession :many
+SELECT id, email, first_name, last_name, mobile_phone, website, created_at, updated_at
+FROM hubspot_contacts
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListHubspotContactsBySessionRow struct {
+	ID          string         `json:"id"`
+	Email       sql.NullString `json:"email"`
+	FirstName   sql.NullString `json:"first_name"`
+	LastName    sql.NullString `json:"last_name"`
+	MobilePhone sql.NullString `json:"mobile_phone"`
+	Website     sql.NullString `json:"website"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+// UI data queries
+func (q *Queries) ListHubspotContactsBySession(ctx context.Context, sessionID string) ([]ListHubspotContactsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHubspotContactsBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHubspotContactsBySessionRow{}
+	for rows.Next() {
+		var i ListHubspotContactsBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.MobilePhone,
+			&i.Website,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHubspotDeals = `-- name: ListHubspotDeals :many
 SELECT id, deal_name, deal_stage, pipeline, amount, created_at, updated_at
 FROM hubspot_deals

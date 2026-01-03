@@ -81,3 +81,10 @@ DELETE FROM pagerduty_incidents WHERE session_id = ?;
 DELETE FROM pagerduty_oncalls WHERE session_id = ?;
 DELETE FROM pagerduty_escalation_policies WHERE session_id = ?;
 DELETE FROM pagerduty_services WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListPagerdutyIncidentsBySession :many
+SELECT id, title, service_id, urgency, status, body_details, created_at, updated_at
+FROM pagerduty_incidents
+WHERE session_id = ?
+ORDER BY created_at DESC;

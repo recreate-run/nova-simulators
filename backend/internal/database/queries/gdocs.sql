@@ -23,3 +23,10 @@ WHERE document_id = ? AND session_id = ?;
 
 -- name: DeleteGdocsSessionData :exec
 DELETE FROM gdocs_documents WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListGdocsBySession :many
+SELECT id, title, revision_id, document_id, created_at
+FROM gdocs_documents
+WHERE session_id = ?
+ORDER BY created_at DESC;

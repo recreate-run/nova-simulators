@@ -114,6 +114,51 @@ func (q *Queries) GetGdocsDocumentByID(ctx context.Context, arg GetGdocsDocument
 	return i, err
 }
 
+const listGdocsBySession = `-- name: ListGdocsBySession :many
+SELECT id, title, revision_id, document_id, created_at
+FROM gdocs_documents
+WHERE session_id = ?
+ORDER BY created_at DESC
+`
+
+type ListGdocsBySessionRow struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	RevisionID string `json:"revision_id"`
+	DocumentID string `json:"document_id"`
+	CreatedAt  int64  `json:"created_at"`
+}
+
+// UI data queries
+func (q *Queries) ListGdocsBySession(ctx context.Context, sessionID string) ([]ListGdocsBySessionRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGdocsBySession, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGdocsBySessionRow{}
+	for rows.Next() {
+		var i ListGdocsBySessionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.RevisionID,
+			&i.DocumentID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateGdocsContent = `-- name: UpdateGdocsContent :exec
 UPDATE gdocs_content
 SET content_json = ?, end_index = ?, updated_at = unixepoch()

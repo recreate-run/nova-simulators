@@ -35,7 +35,7 @@ func (d *Directory) Create() error {
 	log.Printf("[session] → Creating working directory for session: %s", d.sessionID)
 
 	// Create session root directory
-	if err := os.MkdirAll(d.rootPath, 0755); err != nil {
+	if err := os.MkdirAll(d.rootPath, 0o750); err != nil {
 		return fmt.Errorf("failed to create session directory: %w", err)
 	}
 

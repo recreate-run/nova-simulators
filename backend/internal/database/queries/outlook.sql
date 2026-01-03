@@ -33,3 +33,10 @@ WHERE id = ? AND session_id = ?;
 
 -- name: DeleteOutlookSessionData :exec
 DELETE FROM outlook_messages WHERE session_id = ?;
+
+-- UI data queries
+-- name: ListOutlookMessagesBySession :many
+SELECT id, from_email, to_email, subject, body_content, body_type, is_read, received_datetime, created_at
+FROM outlook_messages
+WHERE session_id = ?
+ORDER BY received_datetime DESC;

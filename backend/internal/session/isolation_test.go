@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
+	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
 	"github.com/recreate-run/nova-simulators/internal/session"
 	simulatorGmail "github.com/recreate-run/nova-simulators/simulators/gmail"
@@ -256,7 +257,8 @@ func TestSessionIsolationGmail(t *testing.T) {
 	queries := setupTestDB(t)
 
 	// Setup: Start Gmail simulator server with session middleware
-	gmailHandler := session.Middleware(simulatorGmail.NewHandler(queries))
+	cfg := config.Default()
+	gmailHandler := session.Middleware(simulatorGmail.NewHandler(queries, &cfg.Gmail))
 	server := httptest.NewServer(gmailHandler)
 	defer server.Close()
 
@@ -335,7 +337,8 @@ func TestCrossSimulatorIsolation(t *testing.T) {
 	slackServer := httptest.NewServer(slackHandler)
 	defer slackServer.Close()
 
-	gmailHandler := session.Middleware(simulatorGmail.NewHandler(queries))
+	cfg := config.Default()
+	gmailHandler := session.Middleware(simulatorGmail.NewHandler(queries, &cfg.Gmail))
 	gmailServer := httptest.NewServer(gmailHandler)
 	defer gmailServer.Close()
 

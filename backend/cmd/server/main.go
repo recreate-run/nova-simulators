@@ -8,6 +8,7 @@ import (
 	"time"
 
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
 	"github.com/recreate-run/nova-simulators/internal/logging"
 	"github.com/recreate-run/nova-simulators/internal/session"
@@ -29,6 +30,7 @@ import (
 
 // loadSimulators loads simulator configurations from JSON file
 func loadSimulators(filename string) ([]Simulator, error) {
+	//nolint:gosec // G304: Reading config file path is intentional
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -86,6 +88,13 @@ func main() {
 
 	queries := database.GetQueries()
 
+	// Load simulator configuration
+	cfg, err := config.Load("../config/simulators.yaml")
+	if err != nil {
+		log.Printf("Warning: Failed to load config file, using defaults: %v", err)
+		cfg = config.Default()
+	}
+
 	// Initialize SSE hub for real-time events
 	sseHub := InitSSEHub()
 	sseHandler := NewSSEHandler(sseHub)
@@ -142,7 +151,7 @@ func main() {
 	mux.Handle("/slack/", http.StripPrefix("/slack", slackHandler))
 
 	// Register Gmail simulator with session + logging middleware
-	gmailHandler := session.Middleware(logging.Middleware("gmail")(gmail.NewHandler(queries)))
+	gmailHandler := session.Middleware(logging.Middleware("gmail")(gmail.NewHandler(queries, &cfg.Gmail)))
 	mux.Handle("/gmail/", http.StripPrefix("/gmail", gmailHandler))
 
 	// Register Google Docs simulator with session + logging middleware
@@ -201,7 +210,7 @@ func main() {
 	// Load available simulators from JSON config
 	availableSimulators, err := loadSimulators("cmd/server/simulators.json")
 	if err != nil {
-		logging.CloseLogger()
+		//nolint:gocritic // exitAfterDefer: Fatalf is intentional for fatal errors
 		log.Fatalf("Failed to load simulators config: %v", err)
 	}
 

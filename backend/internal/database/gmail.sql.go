@@ -10,6 +10,35 @@ import (
 	"database/sql"
 )
 
+const createGmailAttachment = `-- name: CreateGmailAttachment :exec
+INSERT INTO gmail_attachments (id, message_id, filename, mime_type, data, size, session_id)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreateGmailAttachmentParams struct {
+	ID        string `json:"id"`
+	MessageID string `json:"message_id"`
+	Filename  string `json:"filename"`
+	MimeType  string `json:"mime_type"`
+	Data      []byte `json:"data"`
+	Size      int64  `json:"size"`
+	SessionID string `json:"session_id"`
+}
+
+// Attachment queries
+func (q *Queries) CreateGmailAttachment(ctx context.Context, arg CreateGmailAttachmentParams) error {
+	_, err := q.db.ExecContext(ctx, createGmailAttachment,
+		arg.ID,
+		arg.MessageID,
+		arg.Filename,
+		arg.MimeType,
+		arg.Data,
+		arg.Size,
+		arg.SessionID,
+	)
+	return err
+}
+
 const createGmailMessage = `-- name: CreateGmailMessage :exec
 INSERT INTO gmail_messages (id, thread_id, from_email, to_email, subject, body_plain, body_html, raw_message, snippet, label_ids, internal_date, size_estimate, session_id)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,6 +86,42 @@ DELETE FROM gmail_messages WHERE session_id = ?
 func (q *Queries) DeleteGmailSessionData(ctx context.Context, sessionID string) error {
 	_, err := q.db.ExecContext(ctx, deleteGmailSessionData, sessionID)
 	return err
+}
+
+const getGmailAttachment = `-- name: GetGmailAttachment :one
+SELECT id, message_id, filename, mime_type, data, size, created_at
+FROM gmail_attachments
+WHERE id = ? AND session_id = ?
+`
+
+type GetGmailAttachmentParams struct {
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
+}
+
+type GetGmailAttachmentRow struct {
+	ID        string `json:"id"`
+	MessageID string `json:"message_id"`
+	Filename  string `json:"filename"`
+	MimeType  string `json:"mime_type"`
+	Data      []byte `json:"data"`
+	Size      int64  `json:"size"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func (q *Queries) GetGmailAttachment(ctx context.Context, arg GetGmailAttachmentParams) (GetGmailAttachmentRow, error) {
+	row := q.db.QueryRowContext(ctx, getGmailAttachment, arg.ID, arg.SessionID)
+	var i GetGmailAttachmentRow
+	err := row.Scan(
+		&i.ID,
+		&i.MessageID,
+		&i.Filename,
+		&i.MimeType,
+		&i.Data,
+		&i.Size,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getGmailMessageByID = `-- name: GetGmailMessageByID :one
@@ -107,17 +172,69 @@ func (q *Queries) GetGmailMessageByID(ctx context.Context, arg GetGmailMessageBy
 	return i, err
 }
 
+const listGmailAttachmentsByMessage = `-- name: ListGmailAttachmentsByMessage :many
+SELECT id, message_id, filename, mime_type, size, created_at
+FROM gmail_attachments
+WHERE message_id = ? AND session_id = ?
+ORDER BY created_at
+`
+
+type ListGmailAttachmentsByMessageParams struct {
+	MessageID string `json:"message_id"`
+	SessionID string `json:"session_id"`
+}
+
+type ListGmailAttachmentsByMessageRow struct {
+	ID        string `json:"id"`
+	MessageID string `json:"message_id"`
+	Filename  string `json:"filename"`
+	MimeType  string `json:"mime_type"`
+	Size      int64  `json:"size"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+func (q *Queries) ListGmailAttachmentsByMessage(ctx context.Context, arg ListGmailAttachmentsByMessageParams) ([]ListGmailAttachmentsByMessageRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGmailAttachmentsByMessage, arg.MessageID, arg.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGmailAttachmentsByMessageRow{}
+	for rows.Next() {
+		var i ListGmailAttachmentsByMessageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Filename,
+			&i.MimeType,
+			&i.Size,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGmailMessages = `-- name: ListGmailMessages :many
 SELECT id, thread_id, snippet, label_ids, internal_date
 FROM gmail_messages
 WHERE session_id = ?
 ORDER BY internal_date DESC
-LIMIT ?
+LIMIT ? OFFSET ?
 `
 
 type ListGmailMessagesParams struct {
 	SessionID string `json:"session_id"`
 	Limit     int64  `json:"limit"`
+	Offset    int64  `json:"offset"`
 }
 
 type ListGmailMessagesRow struct {
@@ -129,7 +246,7 @@ type ListGmailMessagesRow struct {
 }
 
 func (q *Queries) ListGmailMessages(ctx context.Context, arg ListGmailMessagesParams) ([]ListGmailMessagesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listGmailMessages, arg.SessionID, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listGmailMessages, arg.SessionID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +342,7 @@ WHERE
     AND (? = '' OR to_email LIKE '%' || ? || '%')
     AND (? = '' OR subject LIKE '%' || ? || '%')
     AND (? = '' OR body_plain LIKE '%' || ? || '%')
+    AND (? = '' OR label_ids LIKE '%' || ? || '%')
 ORDER BY internal_date DESC
 LIMIT ?
 `
@@ -239,6 +357,8 @@ type SearchGmailMessagesParams struct {
 	Column7   sql.NullString `json:"column_7"`
 	Column8   interface{}    `json:"column_8"`
 	Column9   sql.NullString `json:"column_9"`
+	Column10  interface{}    `json:"column_10"`
+	Column11  sql.NullString `json:"column_11"`
 	Limit     int64          `json:"limit"`
 }
 
@@ -264,6 +384,8 @@ func (q *Queries) SearchGmailMessages(ctx context.Context, arg SearchGmailMessag
 		arg.Column7,
 		arg.Column8,
 		arg.Column9,
+		arg.Column10,
+		arg.Column11,
 		arg.Limit,
 	)
 	if err != nil {

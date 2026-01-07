@@ -165,6 +165,17 @@ type GithubWorkflowRun struct {
 	UpdatedAt  int64          `json:"updated_at"`
 }
 
+type GmailAttachment struct {
+	ID        string `json:"id"`
+	MessageID string `json:"message_id"`
+	Filename  string `json:"filename"`
+	MimeType  string `json:"mime_type"`
+	Data      []byte `json:"data"`
+	Size      int64  `json:"size"`
+	SessionID string `json:"session_id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
 type GmailMessage struct {
 	ID           string         `json:"id"`
 	ThreadID     string         `json:"thread_id"`

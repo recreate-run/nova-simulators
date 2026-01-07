@@ -1,0 +1,21 @@
+# Simulator Configuration
+# Defines timeout and rate limiting behavior for API simulators
+
+gmail:
+  timeout:
+    # Random delay applied to each request (milliseconds)
+    min_ms: 100
+    max_ms: 500
+
+  rate_limit:
+    # Maximum requests allowed per time window
+    per_minute: 60
+    per_day: 250
+
+# Future simulators can be added here:
+# slack:
+#   timeout:
+#     min_ms: 50
+#     max_ms: 200
+#   rate_limit:
+#     per_minute: 100

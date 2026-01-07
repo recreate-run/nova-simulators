@@ -12,7 +12,7 @@ SELECT id, thread_id, snippet, label_ids, internal_date
 FROM gmail_messages
 WHERE session_id = ?
 ORDER BY internal_date DESC
-LIMIT ?;
+LIMIT ? OFFSET ?;
 
 -- name: SearchGmailMessages :many
 SELECT id, thread_id, from_email, to_email, subject, snippet, label_ids, internal_date
@@ -23,6 +23,7 @@ WHERE
     AND (? = '' OR to_email LIKE '%' || ? || '%')
     AND (? = '' OR subject LIKE '%' || ? || '%')
     AND (? = '' OR body_plain LIKE '%' || ? || '%')
+    AND (? = '' OR label_ids LIKE '%' || ? || '%')
 ORDER BY internal_date DESC
 LIMIT ?;
 
@@ -35,3 +36,19 @@ SELECT id, thread_id, from_email, to_email, subject, body_plain, body_html, snip
 FROM gmail_messages
 WHERE session_id = ?
 ORDER BY internal_date DESC;
+
+-- Attachment queries
+-- name: CreateGmailAttachment :exec
+INSERT INTO gmail_attachments (id, message_id, filename, mime_type, data, size, session_id)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetGmailAttachment :one
+SELECT id, message_id, filename, mime_type, data, size, created_at
+FROM gmail_attachments
+WHERE id = ? AND session_id = ?;
+
+-- name: ListGmailAttachmentsByMessage :many
+SELECT id, message_id, filename, mime_type, size, created_at
+FROM gmail_attachments
+WHERE message_id = ? AND session_id = ?
+ORDER BY created_at;

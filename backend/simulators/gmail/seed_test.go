@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
+	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
 	"github.com/recreate-run/nova-simulators/internal/session"
 	simulatorGmail "github.com/recreate-run/nova-simulators/simulators/gmail"
@@ -59,7 +60,17 @@ func TestGmailInitialStateSeed(t *testing.T) {
 	require.NoError(t, err, "Failed to create session")
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries))
+	cfg := &config.GmailConfig{
+		Timeout: config.TimeoutConfig{
+			MinMs: 0,
+			MaxMs: 0,
+		},
+		RateLimit: config.RateLimitConfig{
+			PerMinute: 1000,
+			PerDay:    10000,
+		},
+	}
+	handler := session.Middleware(simulatorGmail.NewHandler(queries, cfg))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 

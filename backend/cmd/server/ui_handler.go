@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
-	"io/fs"
 	"net/http"
 	"strings"
 
@@ -19,18 +17,16 @@ type Simulator struct {
 	Enabled     bool   `json:"enabled"`
 }
 
-// UIHandler serves the web UI and data API endpoints
+// UIHandler serves the data API endpoints
 type UIHandler struct {
 	queries    *database.Queries
-	uiFS       embed.FS
 	simulators []Simulator
 }
 
 // NewUIHandler creates a new UI handler
-func NewUIHandler(queries *database.Queries, uiFS embed.FS, simulators []Simulator) *UIHandler {
+func NewUIHandler(queries *database.Queries, simulators []Simulator) *UIHandler {
 	return &UIHandler{
 		queries:    queries,
-		uiFS:       uiFS,
 		simulators: simulators,
 	}
 }
@@ -38,8 +34,6 @@ func NewUIHandler(queries *database.Queries, uiFS embed.FS, simulators []Simulat
 // ServeHTTP implements http.Handler interface
 func (h *UIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
-	case r.URL.Path == "/ui":
-		h.serveUI(w)
 	case r.URL.Path == "/api/sessions":
 		h.handleGetSessions(w, r)
 	case r.URL.Path == "/api/simulators":
@@ -51,17 +45,6 @@ func (h *UIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
-}
-
-func (h *UIHandler) serveUI(w http.ResponseWriter) {
-	content, err := fs.ReadFile(h.uiFS, "ui/index.html")
-	if err != nil {
-		http.Error(w, "Failed to load UI", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	_, _ = w.Write(content)
 }
 
 func (h *UIHandler) handleGetSessions(w http.ResponseWriter, r *http.Request) {

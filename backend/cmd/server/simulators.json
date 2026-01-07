@@ -1,0 +1,86 @@
+[
+  {
+    "id": "slack",
+    "name": "Slack",
+    "description": "Slack API simulator",
+    "enabled": true
+  },
+  {
+    "id": "gmail",
+    "name": "Gmail",
+    "description": "Gmail API simulator",
+    "enabled": true
+  },
+  {
+    "id": "gdocs",
+    "name": "Google Docs",
+    "description": "Google Docs API simulator",
+    "enabled": true
+  },
+  {
+    "id": "gsheets",
+    "name": "Google Sheets",
+    "description": "Google Sheets API simulator",
+    "enabled": true
+  },
+  {
+    "id": "datadog",
+    "name": "Datadog",
+    "description": "Datadog API simulator",
+    "enabled": true
+  },
+  {
+    "id": "resend",
+    "name": "Resend",
+    "description": "Resend Email API simulator",
+    "enabled": true
+  },
+  {
+    "id": "linear",
+    "name": "Linear",
+    "description": "Linear API simulator",
+    "enabled": true
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "description": "GitHub API simulator",
+    "enabled": true
+  },
+  {
+    "id": "outlook",
+    "name": "Outlook",
+    "description": "Outlook API simulator",
+    "enabled": true
+  },
+  {
+    "id": "pagerduty",
+    "name": "PagerDuty",
+    "description": "PagerDuty API simulator",
+    "enabled": true
+  },
+  {
+    "id": "hubspot",
+    "name": "HubSpot",
+    "description": "HubSpot API simulator",
+    "enabled": true
+  },
+  {
+    "id": "jira",
+    "name": "Jira",
+    "description": "Jira API simulator",
+    "enabled": true
+  },
+  {
+    "id": "whatsapp",
+    "name": "WhatsApp",
+    "description": "WhatsApp API simulator",
+    "enabled": true
+  },
+  {
+    "id": "postgres",
+    "name": "PostgreSQL",
+    "description": "PostgreSQL simulator",
+    "enabled": true
+  }
+]

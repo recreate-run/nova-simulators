@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -27,8 +27,20 @@ import (
 	"github.com/recreate-run/nova-simulators/simulators/whatsapp"
 )
 
-//go:embed ui
-var uiFiles embed.FS
+// loadSimulators loads simulator configurations from JSON file
+func loadSimulators(filename string) ([]Simulator, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var simulators []Simulator
+	if err := json.Unmarshal(data, &simulators); err != nil {
+		return nil, err
+	}
+
+	return simulators, nil
+}
 
 // corsMiddleware adds CORS headers for frontend development
 func corsMiddleware(next http.Handler) http.Handler {
@@ -186,35 +198,31 @@ func main() {
 	// Register SSE endpoint for real-time events
 	mux.Handle("/events/", sseHandler)
 
-	// Define available simulators
-	availableSimulators := []Simulator{
-		{ID: "slack", Name: "Slack", Description: "Slack API simulator", Enabled: true},
-		{ID: "gmail", Name: "Gmail", Description: "Gmail API simulator", Enabled: true},
-		{ID: "gdocs", Name: "Google Docs", Description: "Google Docs API simulator", Enabled: true},
-		{ID: "gsheets", Name: "Google Sheets", Description: "Google Sheets API simulator", Enabled: true},
-		{ID: "datadog", Name: "Datadog", Description: "Datadog API simulator", Enabled: true},
-		{ID: "resend", Name: "Resend", Description: "Resend Email API simulator", Enabled: true},
-		{ID: "linear", Name: "Linear", Description: "Linear API simulator", Enabled: true},
-		{ID: "github", Name: "GitHub", Description: "GitHub API simulator", Enabled: true},
-		{ID: "outlook", Name: "Outlook", Description: "Outlook API simulator", Enabled: true},
-		{ID: "pagerduty", Name: "PagerDuty", Description: "PagerDuty API simulator", Enabled: true},
-		{ID: "hubspot", Name: "HubSpot", Description: "HubSpot API simulator", Enabled: true},
-		{ID: "jira", Name: "Jira", Description: "Jira API simulator", Enabled: true},
-		{ID: "whatsapp", Name: "WhatsApp", Description: "WhatsApp API simulator", Enabled: true},
-		{ID: "postgres", Name: "PostgreSQL", Description: "PostgreSQL simulator", Enabled: postgresHandler != nil},
+	// Load available simulators from JSON config
+	availableSimulators, err := loadSimulators("cmd/server/simulators.json")
+	if err != nil {
+		logging.CloseLogger()
+		log.Fatalf("Failed to load simulators config: %v", err)
 	}
 
-	// Register UI and API routes
-	uiHandler := NewUIHandler(queries, uiFiles, availableSimulators)
-	mux.Handle("/ui", uiHandler)
-	mux.Handle("/api/sessions", uiHandler)
-	mux.Handle("/api/simulators", uiHandler)
-	mux.Handle("/api/simulators/", uiHandler)
+	// Update postgres simulator enabled status based on actual availability
+	for i := range availableSimulators {
+		if availableSimulators[i].ID == "postgres" {
+			availableSimulators[i].Enabled = postgresHandler != nil
+			break
+		}
+	}
 
-	log.Println("UI available at: http://localhost:9000/ui")
+	// Register API routes
+	apiHandler := NewUIHandler(queries, availableSimulators)
+	mux.Handle("/api/sessions", apiHandler)
+	mux.Handle("/api/simulators", apiHandler)
+	mux.Handle("/api/simulators/", apiHandler)
+
 	if postgresHandler != nil {
-		log.Println("  - Postgres: http://localhost:9000/postgres (DB: localhost:5433)")
+		log.Println("Postgres: http://localhost:9000/postgres (DB: localhost:5433)")
 	}
+	log.Println("API endpoints: http://localhost:9000/api/")
 	log.Println("Logging to: simulator.log")
 
 	// Create server with timeouts and CORS middleware

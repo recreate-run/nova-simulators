@@ -1,6 +1,7 @@
 package gmail_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -8,12 +9,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/pressly/goose/v3"
 	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
+	"github.com/recreate-run/nova-simulators/internal/middleware"
 	"github.com/recreate-run/nova-simulators/internal/session"
+	"github.com/recreate-run/nova-simulators/internal/testutil"
 	simulatorGmail "github.com/recreate-run/nova-simulators/simulators/gmail"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,18 +51,6 @@ func setupTestDB(t *testing.T) *database.Queries {
 	return database.New(db)
 }
 
-func defaultTestConfig() *config.GmailConfig {
-	return &config.GmailConfig{
-		Timeout: config.TimeoutConfig{
-			MinMs: 0,
-			MaxMs: 0,
-		},
-		RateLimit: config.RateLimitConfig{
-			PerMinute: 1000,
-			PerDay:    10000,
-		},
-	}
-}
 
 func TestGmailSimulatorSendMessage(t *testing.T) {
 	// Setup: Create test database
@@ -70,7 +60,7 @@ func TestGmailSimulatorSendMessage(t *testing.T) {
 	sessionID := "gmail-test-session-1"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -138,7 +128,7 @@ func TestGmailSimulatorListMessages(t *testing.T) {
 	sessionID := "gmail-test-session-2"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -193,7 +183,7 @@ func TestGmailSimulatorGetMessage(t *testing.T) {
 	sessionID := "gmail-test-session-3"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -268,7 +258,7 @@ func TestGmailSimulatorEndToEnd(t *testing.T) {
 	sessionID := "gmail-test-session-4"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -335,7 +325,7 @@ func TestGmailSimulatorImportMessage(t *testing.T) {
 	sessionID := "gmail-test-import-1"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -402,7 +392,7 @@ func TestGmailSimulatorSearch(t *testing.T) {
 	sessionID := "gmail-test-search-1"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -517,7 +507,7 @@ func TestGmailSimulatorAttachments(t *testing.T) {
 	sessionID := "gmail-test-session-attachments"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -714,7 +704,7 @@ func TestGmailSimulatorPagination(t *testing.T) {
 	sessionID := "gmail-test-session-pagination"
 
 	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, defaultTestConfig()))
+	handler := session.Middleware(simulatorGmail.NewHandler(queries))
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -841,158 +831,59 @@ func TestGmailSimulatorTimeout(t *testing.T) {
 	// Setup: Create test database
 	queries := setupTestDB(t)
 
-	// Setup: Create test session
-	sessionID := "gmail-timeout-test"
-
-	// Setup: Create config with timeout
-	cfg := &config.GmailConfig{
-		Timeout: config.TimeoutConfig{
-			MinMs: 100,
-			MaxMs: 200,
-		},
-		RateLimit: config.RateLimitConfig{
-			PerMinute: 100,
-			PerDay:    1000,
-		},
+	// Handler factory: Creates Gmail handler with middleware
+	makeHandler := func(configManager *config.Manager) http.Handler {
+		return session.Middleware(
+			middleware.RateLimit(configManager, "gmail")(
+				middleware.Timeout(configManager, "gmail")(
+					simulatorGmail.NewHandler(queries))))
 	}
 
-	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, cfg))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	// Create custom HTTP client that adds session header
-	transport := &sessionHTTPTransport{
-		sessionID: sessionID,
-	}
-	customClient := &http.Client{
-		Transport: transport,
-	}
-
-	// Create Gmail service pointing to test server with custom client
-	ctx := context.Background()
-	gmailService, err := gmail.NewService(ctx,
-		option.WithoutAuthentication(),
-		option.WithEndpoint(server.URL+"/"),
-		option.WithHTTPClient(customClient),
-	)
-	require.NoError(t, err, "Failed to create Gmail service")
-
-	t.Run("ResponseIncludesConfiguredDelay", func(t *testing.T) {
-		// Create email message
+	// Request factory: Creates Gmail send message request
+	makeRequest := func(sessionID string) *http.Request {
 		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Timeout Test\r\n\r\nTesting timeout."
 		raw := base64.URLEncoding.EncodeToString([]byte(message))
+		body := fmt.Sprintf(`{"raw":%q}`, raw)
 
-		msg := &gmail.Message{
-			Raw: raw,
-		}
+		req := httptest.NewRequest(http.MethodPost, "/gmail/v1/users/me/messages/send", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Session-ID", sessionID)
+		return req
+	}
 
-		// Measure request duration
-		start := time.Now()
-		_, err := gmailService.Users.Messages.Send("me", msg).Do()
-		duration := time.Since(start)
-
-		// Assertions
-		require.NoError(t, err, "Send should not return error")
-		assert.GreaterOrEqual(t, duration.Milliseconds(), int64(100), "Response should take at least 100ms")
-		assert.LessOrEqual(t, duration.Milliseconds(), int64(300), "Response should take at most 300ms (200ms + overhead)")
-	})
+	// Run common timeout test
+	testutil.TestMiddlewareTimeout(t, makeHandler, makeRequest, "gmail")
 }
 
 func TestGmailSimulatorRateLimit(t *testing.T) {
 	// Setup: Create test database
 	queries := setupTestDB(t)
 
-	// Setup: Create test session
-	sessionID := "gmail-ratelimit-test"
-
-	// Setup: Create config with low rate limit for testing
-	cfg := &config.GmailConfig{
-		Timeout: config.TimeoutConfig{
-			MinMs: 0,
-			MaxMs: 0,
-		},
-		RateLimit: config.RateLimitConfig{
-			PerMinute: 5,
-			PerDay:    100,
-		},
+	// Handler factory: Creates Gmail handler with middleware
+	makeHandler := func(configManager *config.Manager) http.Handler {
+		return session.Middleware(
+			middleware.RateLimit(configManager, "gmail")(
+				middleware.Timeout(configManager, "gmail")(
+					simulatorGmail.NewHandler(queries))))
 	}
 
-	// Setup: Start simulator server with session middleware
-	handler := session.Middleware(simulatorGmail.NewHandler(queries, cfg))
-	server := httptest.NewServer(handler)
-	defer server.Close()
+	// Request factory: Creates Gmail send message request
+	makeRequest := func(sessionID string) *http.Request {
+		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Rate Limit Test\r\n\r\nTesting rate limits."
+		raw := base64.URLEncoding.EncodeToString([]byte(message))
+		body := fmt.Sprintf(`{"raw":%q}`, raw)
 
-	// Create custom HTTP client that adds session header
-	transport := &sessionHTTPTransport{
-		sessionID: sessionID,
+		req := httptest.NewRequest(http.MethodPost, "/gmail/v1/users/me/messages/send", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Session-ID", sessionID)
+		return req
 	}
-	customClient := &http.Client{
-		Transport: transport,
-	}
-
-	// Create Gmail service pointing to test server with custom client
-	ctx := context.Background()
-	gmailService, err := gmail.NewService(ctx,
-		option.WithoutAuthentication(),
-		option.WithEndpoint(server.URL+"/"),
-		option.WithHTTPClient(customClient),
-	)
-	require.NoError(t, err, "Failed to create Gmail service")
 
 	t.Run("EnforcesPerMinuteRateLimit", func(t *testing.T) {
-		// Make requests up to the limit
-		for i := 0; i < 5; i++ {
-			message := fmt.Sprintf("From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Test %d\r\n\r\nTest message %d.", i, i)
-			raw := base64.URLEncoding.EncodeToString([]byte(message))
-
-			msg := &gmail.Message{
-				Raw: raw,
-			}
-
-			_, err := gmailService.Users.Messages.Send("me", msg).Do()
-			require.NoError(t, err, "Request %d should succeed", i+1)
-		}
-
-		// Next request should be rate limited
-		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Rate Limited\r\n\r\nThis should be rate limited."
-		raw := base64.URLEncoding.EncodeToString([]byte(message))
-
-		msg := &gmail.Message{
-			Raw: raw,
-		}
-
-		_, err := gmailService.Users.Messages.Send("me", msg).Do()
-		require.Error(t, err, "Request should be rate limited")
-		assert.Contains(t, err.Error(), "429", "Error should indicate rate limiting (HTTP 429)")
+		testutil.TestMiddlewareRateLimit(t, makeHandler, makeRequest, "gmail")
 	})
 
 	t.Run("PerSessionRateLimitIsolation", func(t *testing.T) {
-		// Create a second session with its own rate limit
-		sessionID2 := "gmail-ratelimit-test-2"
-		transport2 := &sessionHTTPTransport{
-			sessionID: sessionID2,
-		}
-		customClient2 := &http.Client{
-			Transport: transport2,
-		}
-
-		gmailService2, err := gmail.NewService(ctx,
-			option.WithoutAuthentication(),
-			option.WithEndpoint(server.URL+"/"),
-			option.WithHTTPClient(customClient2),
-		)
-		require.NoError(t, err, "Failed to create Gmail service for session 2")
-
-		// Session 2 should be able to make requests even though session 1 is rate limited
-		message := "From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Session 2 Test\r\n\r\nSession 2 message."
-		raw := base64.URLEncoding.EncodeToString([]byte(message))
-
-		msg := &gmail.Message{
-			Raw: raw,
-		}
-
-		_, err = gmailService2.Users.Messages.Send("me", msg).Do()
-		require.NoError(t, err, "Session 2 request should succeed despite session 1 being rate limited")
+		testutil.TestMiddlewareRateLimitIsolation(t, makeHandler, makeRequest, "gmail")
 	})
 }

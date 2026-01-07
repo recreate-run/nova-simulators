@@ -454,6 +454,17 @@ type Session struct {
 	LastAccessed int64  `json:"last_accessed"`
 }
 
+type SessionConfig struct {
+	SessionID          string `json:"session_id"`
+	SimulatorName      string `json:"simulator_name"`
+	TimeoutMinMs       int64  `json:"timeout_min_ms"`
+	TimeoutMaxMs       int64  `json:"timeout_max_ms"`
+	RateLimitPerMinute int64  `json:"rate_limit_per_minute"`
+	RateLimitPerDay    int64  `json:"rate_limit_per_day"`
+	CreatedAt          int64  `json:"created_at"`
+	UpdatedAt          int64  `json:"updated_at"`
+}
+
 type SlackChannel struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`

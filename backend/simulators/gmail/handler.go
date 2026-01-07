@@ -12,16 +12,13 @@ import (
 	"fmt"
 	"io"
 	"log"
-	mathrand "math/rand"
 	"mime/multipart"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
 	"github.com/recreate-run/nova-simulators/internal/session"
 )
@@ -83,28 +80,15 @@ type Message struct {
 	InternalDate string          `json:"internalDate,omitempty"`
 }
 
-// rateLimitState tracks request counts per session
-type rateLimitState struct {
-	minuteCount  int
-	minuteReset  time.Time
-	dailyCount   int
-	dailyReset   time.Time
-}
-
 // Handler implements the Gmail simulator HTTP handler
 type Handler struct {
-	queries     *database.Queries
-	config      *config.GmailConfig
-	rateLimits  map[string]*rateLimitState
-	mu          sync.Mutex
+	queries *database.Queries
 }
 
 // NewHandler creates a new Gmail simulator handler
-func NewHandler(queries *database.Queries, cfg *config.GmailConfig) *Handler {
+func NewHandler(queries *database.Queries) *Handler {
 	return &Handler{
-		queries:    queries,
-		config:     cfg,
-		rateLimits: make(map[string]*rateLimitState),
+		queries: queries,
 	}
 }
 
@@ -112,34 +96,10 @@ func NewHandler(queries *database.Queries, cfg *config.GmailConfig) *Handler {
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[gmail] → %s %s", r.Method, r.URL.Path)
 
-	// Apply configured timeout delay
-	if h.config.Timeout.MaxMs > 0 {
-		delay := h.config.Timeout.MinMs
-		if h.config.Timeout.MaxMs > h.config.Timeout.MinMs {
-			//nolint:gosec // G404: Using math/rand for delay simulation, not security-critical
-			delay += mathrand.Intn(h.config.Timeout.MaxMs - h.config.Timeout.MinMs)
-		}
-		time.Sleep(time.Duration(delay) * time.Millisecond)
-	}
-
-	// Check rate limits
-	sessionID := session.FromContext(r.Context())
-	if err := h.checkRateLimit(sessionID); err != nil {
-		log.Printf("[gmail] ✗ Rate limit exceeded for session %s", sessionID)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusTooManyRequests)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": map[string]interface{}{
-				"code":    429,
-				"message": "Rate limit exceeded. Please try again later.",
-				"status":  "RESOURCE_EXHAUSTED",
-			},
-		})
-		return
-	}
-
 	// Route Gmail API requests
-	if strings.HasPrefix(r.URL.Path, "/v1/users/") {
+	// Support both /v1/users/ (when used with StripPrefix in production)
+	// and /gmail/v1/users/ (when used directly in tests)
+	if strings.HasPrefix(r.URL.Path, "/v1/users/") || strings.HasPrefix(r.URL.Path, "/gmail/v1/users/") {
 		h.handleGmailAPI(w, r)
 		return
 	}
@@ -148,8 +108,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGmailAPI(w http.ResponseWriter, r *http.Request) {
-	// Extract the path after /v1/users/{userId}/
-	path := strings.TrimPrefix(r.URL.Path, "/v1/users/me/")
+	// Extract the path after /v1/users/{userId}/ or /gmail/v1/users/{userId}/
+	path := r.URL.Path
+	path = strings.TrimPrefix(path, "/gmail/v1/users/me/")
+	if path == r.URL.Path {
+		// Didn't match /gmail prefix, try without it
+		path = strings.TrimPrefix(path, "/v1/users/me/")
+	}
 
 	switch {
 	case strings.HasPrefix(path, "messages/send"):
@@ -626,52 +591,6 @@ func (h *Handler) handleGetAttachment(w http.ResponseWriter, r *http.Request, me
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
 	log.Printf("[gmail] ✓ Returned attachment: %s", attachmentID)
-}
-
-// checkRateLimit enforces per-minute and per-day rate limits
-func (h *Handler) checkRateLimit(sessionID string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	now := time.Now()
-	state := h.rateLimits[sessionID]
-
-	// Initialize or reset state if needed
-	if state == nil {
-		h.rateLimits[sessionID] = &rateLimitState{
-			minuteCount: 1,
-			minuteReset: now.Add(1 * time.Minute),
-			dailyCount:  1,
-			dailyReset:  now.Add(24 * time.Hour),
-		}
-		return nil
-	}
-
-	// Reset minute window if expired
-	if now.After(state.minuteReset) {
-		state.minuteCount = 0
-		state.minuteReset = now.Add(1 * time.Minute)
-	}
-
-	// Reset daily window if expired
-	if now.After(state.dailyReset) {
-		state.dailyCount = 0
-		state.dailyReset = now.Add(24 * time.Hour)
-	}
-
-	// Check limits
-	if state.minuteCount >= h.config.RateLimit.PerMinute {
-		return fmt.Errorf("per-minute rate limit exceeded")
-	}
-	if state.dailyCount >= h.config.RateLimit.PerDay {
-		return fmt.Errorf("per-day rate limit exceeded")
-	}
-
-	// Increment counters
-	state.minuteCount++
-	state.dailyCount++
-
-	return nil
 }
 
 // Helper functions

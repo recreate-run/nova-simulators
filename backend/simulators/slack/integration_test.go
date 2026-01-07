@@ -1,6 +1,7 @@
 package slack_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"net/http"
@@ -8,8 +9,11 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
+	"github.com/recreate-run/nova-simulators/internal/config"
 	"github.com/recreate-run/nova-simulators/internal/database"
+	"github.com/recreate-run/nova-simulators/internal/middleware"
 	"github.com/recreate-run/nova-simulators/internal/session"
+	"github.com/recreate-run/nova-simulators/internal/testutil"
 	"github.com/recreate-run/nova-simulators/internal/transport"
 	simulatorSlack "github.com/recreate-run/nova-simulators/simulators/slack"
 	"github.com/slack-go/slack"
@@ -432,5 +436,59 @@ func TestSlackSimulatorAttachments(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "Message with attachment should appear in history")
+	})
+}
+func TestSlackSimulatorTimeout(t *testing.T) {
+	// Setup: Create test database
+	queries := setupTestDB(t)
+
+	// Handler factory: Creates Slack handler with middleware
+	makeHandler := func(configManager *config.Manager) http.Handler {
+		return session.Middleware(
+			middleware.RateLimit(configManager, "slack")(
+				middleware.Timeout(configManager, "slack")(
+					simulatorSlack.NewHandler(queries))))
+	}
+
+	// Request factory: Creates Slack postMessage request
+	makeRequest := func(sessionID string) *http.Request {
+		body := "token=test-token&channel=C001&text=Hello+World"
+		req := httptest.NewRequest(http.MethodPost, "/slack/api/chat.postMessage", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-Session-ID", sessionID)
+		return req
+	}
+
+	// Run common timeout test
+	testutil.TestMiddlewareTimeout(t, makeHandler, makeRequest, "slack")
+}
+
+func TestSlackSimulatorRateLimit(t *testing.T) {
+	// Setup: Create test database
+	queries := setupTestDB(t)
+
+	// Handler factory: Creates Slack handler with middleware
+	makeHandler := func(configManager *config.Manager) http.Handler {
+		return session.Middleware(
+			middleware.RateLimit(configManager, "slack")(
+				middleware.Timeout(configManager, "slack")(
+					simulatorSlack.NewHandler(queries))))
+	}
+
+	// Request factory: Creates Slack postMessage request
+	makeRequest := func(sessionID string) *http.Request {
+		body := "token=test-token&channel=C001&text=Hello+World"
+		req := httptest.NewRequest(http.MethodPost, "/slack/api/chat.postMessage", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-Session-ID", sessionID)
+		return req
+	}
+
+	t.Run("EnforcesPerMinuteRateLimit", func(t *testing.T) {
+		testutil.TestMiddlewareRateLimit(t, makeHandler, makeRequest, "slack")
+	})
+
+	t.Run("PerSessionRateLimitIsolation", func(t *testing.T) {
+		testutil.TestMiddlewareRateLimitIsolation(t, makeHandler, makeRequest, "slack")
 	})
 }
